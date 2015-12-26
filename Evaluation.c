@@ -3,8 +3,10 @@
 #include "Commandes_Internes.h"
 
 int evaluer_expr_simple (char **args){
-	if (strcmp(args[0], "echo") == 0)
-		cmdInt_echo(args);
+	if (strcmp (args[0], "echo") == 0)
+		cmdInt_echo (args);
+	else if (strcmp (args[0], "history") == 0)
+		cmdInt_history (args);
 	else
 		fprintf (stderr, "fonctionnalité non implémentée\n");
 }

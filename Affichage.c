@@ -43,8 +43,6 @@ void indenter(int indentation, int trait){
 }
 
 
-
-  
 void afficher_exprL(Expression *e, int indentation, int trait)
 {
   if (e == NULL) return ;

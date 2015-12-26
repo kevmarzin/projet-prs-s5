@@ -169,7 +169,7 @@ int my_yyparse (void){
       |   - REDIRECTION_O, redirection de la sortie (>)											|
       |   - REDIRECTION_A, redirection de la sortie en mode APPEND (>>).						|
       |   - REDIRECTION_E, redirection de la sortie erreur,  									|
-      |	- REDIRECTION_EO, redirection des sorties erreur et standard.							|
+      |   - REDIRECTION_EO, redirection des sorties erreur et standard.							|
       | 																						|
       | - e.gauche et e.droite, de type Expression *, représentent une sous-expression gauche	|
       |       et une sous-expression droite. Ces deux champs ne sont pas utilisés pour les		|
