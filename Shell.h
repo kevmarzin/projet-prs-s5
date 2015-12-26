@@ -10,26 +10,26 @@
 #define TAILLE_ID 500
 
 typedef enum expr_t {
-  VIDE,	         		// Commande vide 
-  SIMPLE,        		// Commande simple 
-  SEQUENCE,      		// Séquence (;) 
-  SEQUENCE_ET,   		// Séquence conditionnelle (&&) 
-  SEQUENCE_OU,   		// Séquence conditionnelle (||) 
-  BG,	         		// Tache en arriere plan 
-  PIPE,	         		// Pipe 
-  REDIRECTION_I, 		// Redirection entree 
-  REDIRECTION_O, 		// Redirection sortie standard 
-  REDIRECTION_A, 		// Redirection sortie standard, mode append 
-  REDIRECTION_E, 		// Redirection sortie erreur 
-  REDIRECTION_EO,		// Redirection sorties erreur et standard
-  SOUS_SHELL,                   // ( shell ) 
+	VIDE,			// Commande vide 
+	SIMPLE,			// Commande simple 
+	SEQUENCE,		// Séquence (;) 
+	SEQUENCE_ET,	// Séquence conditionnelle (&&) 
+	SEQUENCE_OU,	// Séquence conditionnelle (||) 
+	BG,				// Tache en arriere plan 
+	PIPE,			// Pipe 
+	REDIRECTION_I,	// Redirection entree 
+	REDIRECTION_O,	// Redirection sortie standard 
+	REDIRECTION_A,	// Redirection sortie standard, mode append 
+	REDIRECTION_E,	// Redirection sortie erreur 
+	REDIRECTION_EO,	// Redirection sorties erreur et standard
+	SOUS_SHELL,		// ( shell ) 
 } expr_t;
 
 typedef struct Expression {
-  expr_t type;
-  struct Expression *gauche;
-  struct Expression *droite;
-  char   **arguments;
+	expr_t type;
+	struct Expression *gauche;
+	struct Expression *droite;
+	char   **arguments;
 } Expression;
 
 extern int yyparse(void);
