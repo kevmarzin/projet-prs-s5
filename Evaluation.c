@@ -4,17 +4,21 @@
 
 int evaluer_expr_simple (char **args){
 	if (strcmp (args[0], "echo") == 0)
-		cmdInt_echo (args);
+		cmdInt_echo (args + 1);
 	else if (strcmp (args[0], "history") == 0)
-		cmdInt_history (args);
+		cmdInt_history (args + 1);
+	else if (strcmp (args[0], "date") == 0)
+		cmdInt_date (args + 1);
 	else
-		fprintf (stderr, "fonctionnalité non implémentée\n");
+		fprintf (stderr, "%s : commande introuvable\n", args[0]);
 }
 
 int evaluer_expr (Expression *e){	
 	switch (e->type){
 		case SIMPLE:
 			evaluer_expr_simple (e->arguments);
+			break;
+		case VIDE:
 			break;
 		default:
 			fprintf (stderr, "fonctionnalité non implémentée\n");

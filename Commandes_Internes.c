@@ -8,6 +8,14 @@ void supprimer_char (char *chaine, int pos){
 	}
 }
 
+int nbArguments (char **tab_args) {
+	int id_arg = 0;
+	while (tab_args[id_arg] != NULL)
+		id_arg++;
+	
+	return id_arg;
+}
+
 int estNombre (char *chaine) {
 	int i = 0;
 	int chaineEstNombre = 1;
@@ -88,7 +96,7 @@ void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique
 }
 
 int cmdInt_echo(char **args){
-	int id_arg = 1;
+	int id_arg = 0;
 	int id_arg_debut_affichage = -1;
 	
 	int saut_de_ligne_final = 1;
@@ -133,20 +141,242 @@ int cmdInt_echo(char **args){
 
 int cmdInt_history (char **args) {
 	HISTORY_STATE *etat_hist = history_get_history_state();
-	HIST_ENTRY **hist = etat_hist->entries;
+	HIST_ENTRY **hists = etat_hist->entries;
 	int taille_hist = etat_hist->length;
 	
-	int id_hist = 0;
+	int nb_lignes_specifie = 0;
+	int nb_args = nbArguments(args);
 	
-	char *nb_affichage = args[1];
+	int erreur = 0;
+	int clear = 0;
+	int elem_a_suppr = -1;
 	
-	if (args[1] != NULL && estNombre(nb_affichage))
-		id_hist = taille_hist - atoi(nb_affichage);
-	
-	while (hist[id_hist] != NULL){
-		printf("%d\t%s\n", id_hist + 1, hist[id_hist]->line);
-		id_hist++;
-	}
+	if (args[0] != NULL && args[0][0] == '-' && strlen(args[0]) > 1) {
+		int id_arg = 0;
+		int id_char = 0;
+		int verif_chaine_finie = 0;
+		int longueur_arg;
 		
+		while (!erreur && args[id_arg] != NULL) {
+			int id_char = 0;
+			if (args[id_arg][id_char] == '-') {
+				longueur_arg = strlen(args[id_arg]);
+				id_char++;
+				while (!erreur && !verif_chaine_finie 	&& args[id_arg] != NULL 
+														&& args[id_arg][id_char] != '\0'
+														&& id_char < longueur_arg) {
+					if (args[id_arg][id_char] == 'c') {
+						clear = 1;
+					}
+					else if (args[id_arg][id_char] == 'd' && args[id_arg][id_char+1] != '\0') {
+						if (estNombre (args[id_arg] + (id_char+1))) {
+							elem_a_suppr = atoi (args[id_arg] + (id_char+1));
+							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
+								erreur = 1;
+								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
+							}
+							else
+								verif_chaine_finie = 1;
+						}
+						else {
+							fprintf (stderr, "history : %s : argument numérique nécessaire\n", args[id_arg] + (id_char+1));
+							erreur = 1;
+						}
+					}
+					else if (args[id_arg][id_char] == 'd') { 
+						id_arg ++;
+						if (args[id_arg] == NULL) {
+							fprintf (stderr, "history : -d : l'option a besoin d'un argument\n");
+							erreur = 1;
+						}
+						else if (estNombre (args[id_arg])) {
+							elem_a_suppr = atoi (args[id_arg]);
+							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
+								erreur = 1;
+								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
+							}
+						}
+						else {
+							fprintf (stderr, "history : %s : position dans l'historique hors plage\n", args[id_arg]);
+							erreur = 1;
+						}
+					}
+					else {
+						erreur = 1;
+						fprintf (stderr, "history : -%c : option non valable\n", args[id_arg][id_char]);
+						fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
+					}
+					id_char++;
+				}
+			}
+			
+			if (args[id_arg] != NULL){
+				id_arg++;
+			}	
+		}
+	}
+	else if ((nb_lignes_specifie = (args[0] != NULL && estNombre(args[0]))) || args[0] == NULL) {
+		if (nb_args > 1)
+			fprintf (stderr, "history : trop d'arguments");
+		else {
+			int id_hist = 0;
+			
+			if (nb_lignes_specifie) {
+				id_hist = taille_hist - atoi(args[0]);
+				if (id_hist < 0)
+					id_hist = 0;
+			}
+			
+			while (hists[id_hist] != NULL && taille_hist > 0) {
+				printf("    %d\t%s\n", id_hist + 1, hists[id_hist]->line);
+				id_hist++;
+			}
+		}
+	}
+	else {
+		fprintf (stderr, "history : %s : argument numérique nécessaire", args[0]);
+	}
+	
+	if (!erreur){
+		if (clear){
+			clear_history();
+		}
+		else if (elem_a_suppr != -1){
+			free_history_entry (remove_history(elem_a_suppr-1));
+		}
+	}
+	
+	return 1;
+}
+
+int cmdInt_date (char **args){
+	int id_arg = 0;
+	
+	char *afficher_date = NULL;
+	char *modifier_date = NULL;
+	
+	char *format = NULL;
+	int nb_format = 0;
+	
+	int nb_date = 0;
+	char *fichier_date_modification = NULL;
+	
+	/*
+	 * rfc-3339
+	 * date: argument «  » ambigu pour « --rfc-3339 »
+		Les arguments valables sont :
+		- « date »
+		- « seconds »
+		- « ns »
+*/
+	/*
+	 * rfc-3339 prioritaire sur -d
+	 */
+	int erreur = 0;
+	
+	while (args[id_arg] != NULL && !erreur) {
+		if (strcmp(args[id_arg], "-d") == 0 || strcmp(args[id_arg], "--date=") == 0)
+			;//afficher_date = args[++id_arg];
+		else if (strcmp(args[id_arg], "-f") == 0 || strcmp(args[id_arg], "--file=") == 0)
+			;//modifier_date = args[++id_arg];
+		else if (strcmp(args[id_arg], "-r") == 0 || strstr(args[id_arg], "--reference") != NULL) {
+			nb_date++;
+			if (strcmp(args[id_arg], "-r") == 0 && args[id_arg + 1] != NULL){
+				fichier_date_modification = args[++id_arg];
+			}
+			else if (strstr(args[id_arg], "--reference") != NULL){
+				if( strstr(args[id_arg], "--reference=") == NULL){
+					fprintf (stderr, "date : l'option « %s » requiert un argument\n", args[id_arg]);
+					erreur = 1;
+				}
+				else {
+					fichier_date_modification = (args[id_arg] + strlen("--reference="));
+				}
+			}
+			
+			FILE* fic;
+			if (!erreur && (fic = fopen(fichier_date_modification, "r")) != NULL ) {
+				fclose (fic);
+			}
+			else if (!erreur) {
+				erreur = 1;
+				fprintf (stderr, "date : %s : Aucun fichier ou dossier de ce type\n", args[id_arg]);
+			}
+		}
+		else if (strcmp(args[id_arg], "-R") == 0 || strcmp(args[id_arg], "--rfc-2822") == 0 || strstr(args[id_arg], "--rfc-2822=") != NULL) {
+			if (strstr(args[id_arg], "--rfc-2822=") != NULL) {
+				fprintf (stderr, "date : l'option « --rfc-2822 » ne permet pas d'argument\n");
+				erreur = 1;
+			}
+			else {
+				nb_format++;
+				format = "%a, %d %b %Y %X %z";
+			}
+		}
+		else if (strstr(args[id_arg], "--rfc-3339") != NULL || strstr(args[id_arg], "--rfc-3339=") != NULL ) {
+			if (strstr(args[id_arg], "--rfc-3339=") == NULL) {
+				erreur = 1;
+				fprintf (stderr, "date : l'option « %s » requiert un argument\n", args[id_arg]);
+			}
+			else {
+				char* format_rfc = (args[id_arg] + strlen("--rfc-3339="));
+				if (format_rfc[0] != '\0' &&   (strcmp (format_rfc, "date") == 0
+											||	strcmp (format_rfc, "seconds") == 0
+											||	strcmp (format_rfc, "ns") == 0)){
+					nb_format++;
+					if (strcmp (format_rfc, "date") == 0)
+						format = "%F";
+					else if (strcmp (format_rfc, "seconds") == 0)
+						format = "%F %X%z";
+					else if (strcmp (format_rfc, "ns") == 0)
+						format = "XXXXXXXXXX";
+				}
+				else {
+					erreur = 1;
+					fprintf (stderr, "date : argument « %s » incorrect pour « --rfc-3339 »\nLes arguments valables sont :\n  - « date »\n  - « seconds »\n  - « ns »\n", format_rfc);
+				}
+			}
+		}
+		else if (strcmp(args[id_arg], "-s") == 0 || strcmp(args[id_arg], "--set=") == 0)
+			;
+		else if (strcmp(args[id_arg], "-u") == 0 || strcmp(args[id_arg], "--utc=") == 0 || strcmp(args[id_arg], "--universel=") == 0)
+			;
+		else if (args[id_arg][0] == '+') {
+			format = args[id_arg] + 1;
+			nb_format++;
+		}
+			
+		else {
+			erreur = 1;
+			fprintf (stderr, "date: date incorrecte « %s »\n", args[id_arg]);
+		}
+	
+		id_arg++;
+	}
+	
+	
+	
+	if (!erreur && (nb_format == 0 || nb_format == 1) && (nb_date == 0 || nb_date == 1)) {
+		char buffer[256];
+		time_t timestamp;
+		
+		if (nb_format == 0)
+			format = "%A %d %B %Y, %X (UTC%z)";
+					
+		if (nb_date == 0)
+			timestamp = time(NULL);
+		else if (nb_date == 1) {
+			struct stat buf;
+			if (fichier_date_modification != NULL && stat (fichier_date_modification, &buf) == 0)
+				timestamp = buf.st_mtime;
+		}
+			
+		strftime(buffer, sizeof(buffer), format, localtime(&timestamp));
+		printf("%s\n", buffer);
+	}
+	else if (!erreur && nb_format > 1)
+		fprintf (stderr, "date : plusieurs formats de fichiers de sortie indiqués\n");
+	else if (!erreur && nb_date > 1)
+		fprintf (stderr, "date : les options pour indiquer les dates d'impression sont mutuellement exclusives\n");
 	return 1;
 }
