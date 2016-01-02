@@ -28,6 +28,77 @@ int estNombre (char *chaine) {
 	return chaineEstNombre;
 }
 
+/*
+ * Remplace toutes les occurrences de str_a_remplacer par str_remplacement dans chaîne
+ * Renvoie le résultat si des occurrences sont trouvées sinon la chaîne source
+ * Si les chaînes à remplacer commence par 
+ */
+char *remplacer (char *chaine, const char *str_a_remplacer, const char *str_remplacement) {
+    char *sous_chaine = NULL;
+	char *res = NULL;
+
+	int taille_strRemplacee = strlen(str_a_remplacer);	
+	int cpt = 0;
+	int pos_sous_chaine = 0;
+    //On compte le nombre d'occurrences de str_a_remplacer dans chaîne
+	sous_chaine = strstr (chaine, str_a_remplacer);
+	
+	while (sous_chaine != NULL) {
+		cpt++;
+		pos_sous_chaine = (sous_chaine - chaine);
+		
+		if (pos_sous_chaine + taille_strRemplacee >= strlen(chaine))
+			sous_chaine = NULL;
+		else
+			sous_chaine = strstr (sous_chaine + taille_strRemplacee, str_a_remplacer);
+		
+	}
+	
+	if (cpt > 0) {
+		int taille_retour = ( strlen(str_remplacement) - taille_strRemplacee ) * cpt + strlen(chaine);
+		
+		//allocation de la memoire pour le résultat et initialisation
+		res = malloc(taille_retour);
+		strcpy (res, "");
+		
+		int pos_curseur = 0;
+		sous_chaine = strstr (chaine, str_a_remplacer);
+		
+		//Tant que on trouve la chaîne à remplacer, on extrait la sous chaîne qui commence par la chaîne à remplacer
+		while (sous_chaine != NULL) {
+			//Calcul de la position de la sous chaîne trouvée dans la chaîne de départ
+			pos_sous_chaine = sous_chaine - chaine;
+			
+			//On met dans le résultat ce qu'il y a entre la dernière chaîne à remplacer trouvée et la sous chaîne trouvée (exclues)
+			strncat (res, chaine + pos_curseur, (pos_sous_chaine - pos_curseur));
+			
+			//Si la chaine ne contient pas à la position donnée une chaine du type "%%x" ou "%x est la chaîne à remplacer,
+			//on effectue le remplacement sinon on passe la chaîne à remplacer
+			if (str_a_remplacer[0] != '%' || chaine[pos_sous_chaine-1] != '%') 
+				//On met dans le résultat la chaîne de remplacement
+				strcat (res, str_remplacement);
+			else 
+				//On met dans le résultat la chaîne à remplacer privée de son premier '%'
+				strcat (res, str_a_remplacer + 1);
+			
+			//On passe la chaîne à remplacer
+			pos_curseur = pos_sous_chaine + taille_strRemplacee;
+			
+			//Si on trouve une nouvelle occurrence de la chaîne à remplacer, on extrait la sous chaîne qui commence
+			//par la chaîne à remplacer et on continue
+			if (strstr (chaine + pos_curseur, str_a_remplacer) != NULL)
+				sous_chaine = strstr (chaine + pos_curseur, str_a_remplacer);
+			//Sinon on écrit ce qu'il reste dans la chaîne et on arrête la boucle
+			else {
+				strcat (res, chaine + pos_curseur);
+				sous_chaine = NULL;
+			}
+		}
+	}
+	
+    return (res != NULL) ? res : chaine;
+}
+
 void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique, int *arret_sortie) {
 	int i = 0;
 	
@@ -260,7 +331,7 @@ int cmdInt_date (char **args){
 	
 	int nb_date = 0;
 	char *fichier_date_modification = NULL;
-	
+	char *date_donnee = NULL;
 	/*
 	 * rfc-3339
 	 * date: argument «  » ambigu pour « --rfc-3339 »
@@ -275,24 +346,33 @@ int cmdInt_date (char **args){
 	int erreur = 0;
 	
 	while (args[id_arg] != NULL && !erreur) {
-		if (strcmp(args[id_arg], "-d") == 0 || strcmp(args[id_arg], "--date=") == 0)
-			;//afficher_date = args[++id_arg];
+		if (strcmp(args[id_arg], "-d") == 0 || strcmp(args[id_arg], "--date=") == 0) {
+			nb_date++;
+			if (args[id_arg + 1] != NULL && args[id_arg + 1][0] != '-')
+				date_donnee = args[++id_arg];
+			else
+				date_donnee = "";
+		}
 		else if (strcmp(args[id_arg], "-f") == 0 || strcmp(args[id_arg], "--file=") == 0)
 			;//modifier_date = args[++id_arg];
+		else if (strcmp(args[id_arg], "-I") == 0 || strcmp(args[id_arg], "--iso8601") == 0)
+			;
 		else if (strcmp(args[id_arg], "-r") == 0 || strstr(args[id_arg], "--reference") != NULL) {
 			nb_date++;
-			if (strcmp(args[id_arg], "-r") == 0 && args[id_arg + 1] != NULL){
+			if ((strcmp(args[id_arg], "-r") == 0 && args[id_arg + 1] != NULL) || 
+						(strcmp (args[id_arg], "--reference") == 0 && args[id_arg + 1] != NULL))
 				fichier_date_modification = args[++id_arg];
+			else if ((strcmp(args[id_arg], "-r") == 0 && args[id_arg + 1] != NULL) || 
+						(strcmp (args[id_arg], "--reference") == 0 && args[id_arg + 1] == NULL)){
+				erreur = 1;
+				fprintf (stderr, "date : l'option « %s » requiert un argument\n", args[id_arg]);
 			}
-			else if (strstr(args[id_arg], "--reference") != NULL){
-				if( strstr(args[id_arg], "--reference=") == NULL){
-					fprintf (stderr, "date : l'option « %s » requiert un argument\n", args[id_arg]);
-					erreur = 1;
-				}
-				else {
-					fichier_date_modification = (args[id_arg] + strlen("--reference="));
-				}
-			}
+			else if (strcmp(args[id_arg], "--reference=") == 0 && args[id_arg + 1] != NULL)
+					fichier_date_modification = args[++id_arg];
+			else if (strstr(args[id_arg], "--reference=") == 0 && strlen ("--reference=") < strlen (args[id_arg]))
+				fichier_date_modification = (args[id_arg] + strlen("--reference="));
+			else 
+				fichier_date_modification = "";
 			
 			FILE* fic;
 			if (!erreur && (fic = fopen(fichier_date_modification, "r")) != NULL ) {
@@ -300,7 +380,7 @@ int cmdInt_date (char **args){
 			}
 			else if (!erreur) {
 				erreur = 1;
-				fprintf (stderr, "date : %s : Aucun fichier ou dossier de ce type\n", args[id_arg]);
+				fprintf (stderr, "date : %s : Aucun fichier ou dossier de ce type\n", fichier_date_modification);
 			}
 		}
 		else if (strcmp(args[id_arg], "-R") == 0 || strcmp(args[id_arg], "--rfc-2822") == 0 || strstr(args[id_arg], "--rfc-2822=") != NULL) {
@@ -320,6 +400,9 @@ int cmdInt_date (char **args){
 			}
 			else {
 				char* format_rfc = (args[id_arg] + strlen("--rfc-3339="));
+				if (format_rfc[0] == '\0' && args[id_arg + 1][0] != '-')
+					format_rfc = args[++id_arg];
+					
 				if (format_rfc[0] != '\0' &&   (strcmp (format_rfc, "date") == 0
 											||	strcmp (format_rfc, "seconds") == 0
 											||	strcmp (format_rfc, "ns") == 0)){
@@ -345,7 +428,6 @@ int cmdInt_date (char **args){
 			format = args[id_arg] + 1;
 			nb_format++;
 		}
-			
 		else {
 			erreur = 1;
 			fprintf (stderr, "date: date incorrecte « %s »\n", args[id_arg]);
@@ -354,24 +436,69 @@ int cmdInt_date (char **args){
 		id_arg++;
 	}
 	
-	
-	
 	if (!erreur && (nb_format == 0 || nb_format == 1) && (nb_date == 0 || nb_date == 1)) {
 		char buffer[256];
 		time_t timestamp;
+		struct tm *date;
 		
 		if (nb_format == 0)
 			format = "%A %d %B %Y, %X (UTC%z)";
 					
-		if (nb_date == 0)
+		if (nb_date == 0) {
 			timestamp = time(NULL);
+			date = localtime(&timestamp);
+		}
 		else if (nb_date == 1) {
 			struct stat buf;
-			if (fichier_date_modification != NULL && stat (fichier_date_modification, &buf) == 0)
+			if (fichier_date_modification != NULL && stat (fichier_date_modification, &buf) == 0) {
 				timestamp = buf.st_mtime;
+				date = localtime(&timestamp);
+			}
+			else if (date_donnee != NULL) {
+				if (date_donnee[0] == '@') {
+					timestamp = atoi(date_donnee + 1);
+					date = localtime(&timestamp);
+				}
+				else if (date_donnee[0] == '\0'){
+					timestamp = time(NULL);
+					date = localtime(&timestamp);
+					date->tm_sec = 0;
+					date->tm_min = 0;
+					date->tm_hour = 0;
+				}
+			}
 		}
+		
+		if (strstr (format, "%k") != NULL)
+			format = remplacer (format, "%k", "%_H");
+		if (strstr (format, "%l") != NULL)
+			format = remplacer (format, "%l", "%_I");
+		if (strstr (format, "%:z") != NULL || strstr (format, "%::z") != NULL || strstr (format, "%::z") != NULL ) {
+			char interpretation_z[256];
+			strftime(interpretation_z, sizeof(interpretation_z), "%z", date);
 			
-		strftime(buffer, sizeof(buffer), format, localtime(&timestamp));
+			char interpretation_simple_z[6];
+			memset (interpretation_simple_z, '\0', 6);
+			strcpy(interpretation_simple_z, interpretation_z);
+			interpretation_simple_z[5] = interpretation_simple_z[4];
+			interpretation_simple_z[4] = interpretation_simple_z[3];
+			interpretation_simple_z[3] = ':';
+			format = remplacer (format, "%:z", interpretation_simple_z);
+			
+			char interpretation_double_z[9];
+			memset (interpretation_double_z, '\0', 9);
+			strcpy(interpretation_double_z, interpretation_simple_z);
+			strcat(interpretation_double_z, ":00");
+			format = remplacer (format, "%::z", interpretation_double_z);
+			
+			char interpretation_triple_z[4];
+			memset (interpretation_triple_z, '\0', 4);
+			strncpy (interpretation_triple_z, interpretation_z, 3);
+			format = remplacer (format, "%:::z", interpretation_triple_z);
+		}
+		if (strstr (format, "%N") != NULL)
+			
+		strftime(buffer, sizeof(buffer), format, date);
 		printf("%s\n", buffer);
 	}
 	else if (!erreur && nb_format > 1)
