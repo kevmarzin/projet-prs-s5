@@ -51,7 +51,6 @@ char *remplacer (char *chaine, const char *str_a_remplacer, const char *str_remp
 			sous_chaine = NULL;
 		else
 			sous_chaine = strstr (sous_chaine + taille_strRemplacee, str_a_remplacer);
-		
 	}
 	
 	if (cpt > 0) {
@@ -79,7 +78,7 @@ char *remplacer (char *chaine, const char *str_a_remplacer, const char *str_remp
 				strcat (res, str_remplacement);
 			else 
 				//On met dans le résultat la chaîne à remplacer privée de son premier '%'
-				strcat (res, str_a_remplacer + 1);
+				strcat (res, str_a_remplacer);
 			
 			//On passe la chaîne à remplacer
 			pos_curseur = pos_sous_chaine + taille_strRemplacee;
@@ -332,6 +331,7 @@ int cmdInt_date (char **args){
 	int nb_date = 0;
 	char *fichier_date_modification = NULL;
 	char *date_donnee = NULL;
+	char *argument_iso8601 = NULL;
 	/*
 	 * rfc-3339
 	 * date: argument «  » ambigu pour « --rfc-3339 »
@@ -355,8 +355,53 @@ int cmdInt_date (char **args){
 		}
 		else if (strcmp(args[id_arg], "-f") == 0 || strcmp(args[id_arg], "--file=") == 0)
 			;//modifier_date = args[++id_arg];
-		else if (strcmp(args[id_arg], "-I") == 0 || strcmp(args[id_arg], "--iso8601") == 0)
-			;
+		// si ça commence par -I OU (si ça commence par iso-8601 ET (si ça commence par iso-8601 et que l'argument est plus long, il y a forcément un '=' qui suit))
+		else if (	(strlen(args[id_arg]) >= 2 	&& args[id_arg][0] == '-' 
+												&& args[id_arg][1] == 'I') 
+					|| ((strstr(args[id_arg], "--iso-8601") != NULL && (strlen(strstr(args[id_arg], "--iso-8601")) == strlen(args[id_arg])))
+						&& ((strlen(args[id_arg]) > strlen("--iso-8601") && args[id_arg][strlen("--iso-8601")] == '=') 
+							|| strlen(args[id_arg]) == strlen("--iso-8601")))) {
+			nb_format++;
+			argument_iso8601 = "date";
+			
+			int longueur_nom_arg;
+			int argument_suivant = 0;
+			if (strlen(args[id_arg]) > 2 && args[id_arg][0] == '-' && args[id_arg][1] == 'I')
+				longueur_nom_arg = strlen("-I");
+			else if (strstr(args[id_arg], "--iso-8601") != NULL 	&& strlen(args[id_arg]) > strlen ("--iso-8601")){
+				longueur_nom_arg = strlen("--iso-8601=");
+				argument_suivant = (strstr(args[id_arg], "--iso-8601=") != NULL && strlen(args[id_arg]) == strlen ("--iso-8601="));
+			}
+			else
+				longueur_nom_arg = 0;
+			
+			if (longueur_nom_arg != 0 || argument_suivant) {
+				if (strcmp(args[id_arg] + longueur_nom_arg, "hours") == 0 	|| strcmp(args[id_arg] + longueur_nom_arg, "minutes") == 0 
+																			|| strcmp(args[id_arg] + longueur_nom_arg, "date") == 0 
+																			|| strcmp(args[id_arg] + longueur_nom_arg, "seconds") == 0
+																			|| strcmp(args[id_arg] + longueur_nom_arg, "ns") == 0) 
+					argument_iso8601 = args[id_arg] + longueur_nom_arg;
+				else if (argument_suivant && args[id_arg + 1] != NULL && 	(strcmp(args[id_arg + 1], "hours") == 0 	
+																			|| strcmp(args[id_arg + 1], "minutes") == 0 
+																			|| strcmp(args[id_arg + 1], "date") == 0 
+																			|| strcmp(args[id_arg + 1], "seconds") == 0
+																			|| strcmp(args[id_arg + 1], "ns") == 0))
+					argument_iso8601 = args[++id_arg];
+				else {
+					erreur = 1;
+					if (argument_suivant && args[id_arg + 1] != NULL)
+						argument_iso8601 == args[++id_arg];
+					if (argument_suivant)
+						argument_iso8601 = "";
+					else
+						argument_iso8601 = args[id_arg] + longueur_nom_arg;
+					
+					fprintf (stderr,
+							 "date: argument « %s » incorrect pour « --iso-8601 »\nLes arguments valables sont :\n    -\t« hours »\n    -\t« minutes »\n    -\t« date »\n    -\t« seconds »\n    -\t« ns »\n",
+							 argument_iso8601);
+				}
+			}
+		}
 		else if (strcmp(args[id_arg], "-r") == 0 || strstr(args[id_arg], "--reference") != NULL) {
 			nb_date++;
 			if ((strcmp(args[id_arg], "-r") == 0 && args[id_arg + 1] != NULL) || 
@@ -412,7 +457,7 @@ int cmdInt_date (char **args){
 					else if (strcmp (format_rfc, "seconds") == 0)
 						format = "%F %X%z";
 					else if (strcmp (format_rfc, "ns") == 0)
-						format = "XXXXXXXXXX";
+						format = "%F %X.%N%z";
 				}
 				else {
 					erreur = 1;
@@ -440,12 +485,26 @@ int cmdInt_date (char **args){
 		char buffer[256];
 		time_t timestamp;
 		struct tm *date;
+		struct timespec timestamp_avec_ns;
 		
 		if (nb_format == 0)
 			format = "%A %d %B %Y, %X (UTC%z)";
-					
+		else if (argument_iso8601 != NULL) {
+			if (strcmp(argument_iso8601, "date") == 0)
+				format = "%F";
+			else if (strcmp(argument_iso8601, "hours") == 0)
+				format = "%FT%H%z";
+			else if (strcmp(argument_iso8601, "minutes") == 0)
+				format = "%FT%R%z";
+			else if (strcmp(argument_iso8601, "seconds") == 0)
+				format = "%FT%T%z";
+			else if (strcmp(argument_iso8601, "ns") == 0)
+				format = "%FT%R,%N%z";
+		}
+			
 		if (nb_date == 0) {
-			timestamp = time(NULL);
+			clock_gettime (CLOCK_REALTIME, &timestamp_avec_ns);
+			timestamp = timestamp_avec_ns.tv_sec;
 			date = localtime(&timestamp);
 		}
 		else if (nb_date == 1) {
@@ -471,8 +530,10 @@ int cmdInt_date (char **args){
 		
 		if (strstr (format, "%k") != NULL)
 			format = remplacer (format, "%k", "%_H");
+		
 		if (strstr (format, "%l") != NULL)
 			format = remplacer (format, "%l", "%_I");
+		
 		if (strstr (format, "%:z") != NULL || strstr (format, "%::z") != NULL || strstr (format, "%::z") != NULL ) {
 			char interpretation_z[256];
 			strftime(interpretation_z, sizeof(interpretation_z), "%z", date);
@@ -496,8 +557,16 @@ int cmdInt_date (char **args){
 			strncpy (interpretation_triple_z, interpretation_z, 3);
 			format = remplacer (format, "%:::z", interpretation_triple_z);
 		}
-		if (strstr (format, "%N") != NULL)
-			
+		if (strstr (format, "%N") != NULL) {
+			if (nb_date == 0) {
+				char nanoSec[10 + 1];
+				sprintf(nanoSec, "%lu", timestamp_avec_ns.tv_nsec);
+				format = remplacer (format, "%N", nanoSec);
+			}
+			else
+				format = remplacer (format, "%N", ".000000000");
+		}
+		
 		strftime(buffer, sizeof(buffer), format, date);
 		printf("%s\n", buffer);
 	}
