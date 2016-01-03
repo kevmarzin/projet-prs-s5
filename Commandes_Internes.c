@@ -1,6 +1,73 @@
 #include "Commandes_Internes.h"
 #include "Utilitaires.h"
 
+void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique, int *arret_sortie) {
+	int i = 0;
+	
+	while (chaine[i] != '\0' && !(*arret_sortie)) {
+		if (interpreter_contre_oblique 	&& chaine[i] == '\\'
+										&& chaine[i+1] == '\\') {
+			switch (chaine[i+2]){
+				case 'a':
+					supprimer_char (chaine, i);
+					supprimer_char (chaine, i);
+					chaine[i] = '\a';
+					break;
+				case 'b':
+					supprimer_char (chaine, i);
+					supprimer_char (chaine, i);
+					chaine[i] = '\b';
+					break;
+				case 'c':
+					(*arret_sortie) = 1;
+					chaine[i] = '\0';
+					break;
+				case 'e':
+					supprimer_char (chaine, i);
+					supprimer_char (chaine, i);
+					chaine[i] = '\e';
+					break;
+				case 'f':
+					supprimer_char (chaine, i);
+					supprimer_char (chaine, i);
+					chaine[i] = '\f';
+					break;
+				case 'n':
+					supprimer_char (chaine, i);
+					supprimer_char (chaine, i);
+					chaine[i] = '\n';
+					break;
+				case 'r':
+					supprimer_char (chaine, i);
+					supprimer_char (chaine, i);
+					chaine[i] = '\r';
+					break;
+				case 't':
+					supprimer_char (chaine, i);
+					supprimer_char (chaine, i);
+					chaine[i] = '\t';
+					break;
+				case 'v':
+					supprimer_char (chaine, i);
+					supprimer_char (chaine, i);
+					chaine[i] = '\v';
+					break;
+				default:
+					supprimer_char (chaine, i);
+					i++;
+					break;
+			}
+		}
+		else if (chaine[i] == '\\' && !interpreter_contre_oblique) {
+			supprimer_char (chaine, i); // Suppression du '\'
+			i++; // Caractère suivant passé
+		}
+		
+		if (!(*arret_sortie))
+			i++;
+	}
+}
+
 /*
  * Commande echo.
  */
