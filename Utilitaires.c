@@ -1,5 +1,28 @@
 #include "Utilitaires.h"
 
+char **split_str (char* src, const char *separateur) {
+	char** res = calloc(100, sizeof(char*));
+	int i = 0;
+	char* token = strtok(src, separateur);
+	while (token != NULL && i < 99) {
+		res[i] = token;
+		token = strtok(NULL, separateur);
+		i++;
+	}
+	res[i] = NULL;
+	
+	return res;
+}
+
+int commence_par (const char *src, const char *prefixe) {
+	char *res = strstr (src, prefixe);
+	return (res != NULL) && (strlen (res) == strlen (src));
+}
+
+int sont_egales (const char *src1, const char *src2) {
+	return (strcmp(src1, src2) == 0);
+}
+
 void supprimer_char (char *chaine, int pos){
 	int i = pos;
 	if (pos < strlen(chaine))

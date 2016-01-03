@@ -1,6 +1,41 @@
 #include "Commandes_Internes.h"
 #include "Utilitaires.h"
 
+char **split_str (const char* src, const char *comparateur) {
+    char** res = calloc(100, sizeof(char*));
+    int i = 0;
+    char* token = strtok(src, comparateur);
+    while (token != NULL && i < 100) {
+		res[i] = token;
+		token = strtok(NULL, comparateur);
+		i++;
+	}
+    return res;
+}
+
+struct tm *analyser_date (char *date_donnee) {
+	struct tm *date = NULL;
+	if (estNombre (date_donnee)) {
+		time_t timestamp = time(NULL);
+		date = localtime (&timestamp);
+		if (strlen (date_donnee) <= 4 && strlen (date_donnee) >= 1) {
+			date->tm_sec = 0;
+			date->tm_min = 0;
+			strptime(date_donnee, "%H%M", date);
+		}
+		else if (strlen (date_donnee) > 4) {
+			strptime(date_donnee, "%Y%m%d", date);
+			date->tm_sec = 0;
+			date->tm_min = 0;
+			date->tm_hour = 0;
+		}
+	}
+	else {
+		
+	}
+	return date;
+}
+
 void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique, int *arret_sortie) {
 	int i = 0;
 	
@@ -255,10 +290,16 @@ int cmdInt_date (char **args){
 	int erreur = 0;
 	
 	while (args[id_arg] != NULL && !erreur) {
-		if (strcmp(args[id_arg], "-d") == 0 || strcmp(args[id_arg], "--date=") == 0) {
+		if (sont_egales (args[id_arg], "-d")|| sont_egales (args[id_arg], "--date") 
+											|| (commence_par (args[id_arg], "--date") 
+												&& args[id_arg][strlen("--date")] == '=')){
 			nb_date++;
-			if (args[id_arg + 1] != NULL && args[id_arg + 1][0] != '-')
+			if (sont_egales (args[id_arg], "-d")|| sont_egales (args[id_arg], "--date") 
+												|| (commence_par (args[id_arg], "--date") 	&& (strlen (args[id_arg]) == strlen ("--date="))
+																							&& args[id_arg + 1] != NULL && args[id_arg + 1][0] != '-'))
 				date_donnee = args[++id_arg];
+			else if (commence_par (args[id_arg], "--date") && (strlen (args[id_arg]) > strlen ("--date=")))
+				date_donnee = args[id_arg] + strlen ("--date=");
 			else
 				date_donnee = "";
 		}
@@ -423,61 +464,69 @@ int cmdInt_date (char **args){
 				date = localtime(&timestamp);
 			}
 			else if (date_donnee != NULL) {
-				if (date_donnee[0] == '@') {
+				if (commence_par (date_donnee, "@") ) {
 					timestamp = atoi(date_donnee + 1);
 					date = localtime(&timestamp);
 				}
-				else if (date_donnee[0] == '\0'){
+				else if (sont_egales( date_donnee, "") ){
 					timestamp = time(NULL);
 					date = localtime(&timestamp);
 					date->tm_sec = 0;
 					date->tm_min = 0;
 					date->tm_hour = 0;
 				}
+				else if ((date = analyser_date (date_donnee)) == NULL)
+					erreur = 1;
 			}
 		}
 		
-		if (strstr (format, "%k") != NULL)
-			format = remplacer (format, "%k", "%_H");
-		
-		if (strstr (format, "%l") != NULL)
-			format = remplacer (format, "%l", "%_I");
-		
-		if (strstr (format, "%:z") != NULL || strstr (format, "%::z") != NULL || strstr (format, "%::z") != NULL ) {
-			char interpretation_z[256];
-			strftime(interpretation_z, sizeof(interpretation_z), "%z", date);
+		if (!erreur) {
+			if (strstr (format, "%k") != NULL)
+				format = remplacer (format, "%k", "%_H");
 			
-			char interpretation_simple_z[6];
-			memset (interpretation_simple_z, '\0', 6);
-			strcpy(interpretation_simple_z, interpretation_z);
-			interpretation_simple_z[5] = interpretation_simple_z[4];
-			interpretation_simple_z[4] = interpretation_simple_z[3];
-			interpretation_simple_z[3] = ':';
-			format = remplacer (format, "%:z", interpretation_simple_z);
+			if (strstr (format, "%l") != NULL)
+				format = remplacer (format, "%l", "%_I");
 			
-			char interpretation_double_z[9];
-			memset (interpretation_double_z, '\0', 9);
-			strcpy(interpretation_double_z, interpretation_simple_z);
-			strcat(interpretation_double_z, ":00");
-			format = remplacer (format, "%::z", interpretation_double_z);
-			
-			char interpretation_triple_z[4];
-			memset (interpretation_triple_z, '\0', 4);
-			strncpy (interpretation_triple_z, interpretation_z, 3);
-			format = remplacer (format, "%:::z", interpretation_triple_z);
-		}
-		if (strstr (format, "%N") != NULL) {
-			if (nb_date == 0) {
-				char nanoSec[10 + 1];
-				sprintf(nanoSec, "%lu", timestamp_avec_ns.tv_nsec);
-				format = remplacer (format, "%N", nanoSec);
+			if (strstr (format, "%:z") != NULL || strstr (format, "%::z") != NULL || strstr (format, "%::z") != NULL ) {
+				char interpretation_z[256];
+				strftime(interpretation_z, sizeof(interpretation_z), "%z", date);
+				
+				char interpretation_simple_z[6];
+				memset (interpretation_simple_z, '\0', 6);
+				strcpy(interpretation_simple_z, interpretation_z);
+				interpretation_simple_z[5] = interpretation_simple_z[4];
+				interpretation_simple_z[4] = interpretation_simple_z[3];
+				interpretation_simple_z[3] = ':';
+				format = remplacer (format, "%:z", interpretation_simple_z);
+				
+				char interpretation_double_z[9];
+				memset (interpretation_double_z, '\0', 9);
+				strcpy(interpretation_double_z, interpretation_simple_z);
+				strcat(interpretation_double_z, ":00");
+				format = remplacer (format, "%::z", interpretation_double_z);
+				
+				char interpretation_triple_z[4];
+				memset (interpretation_triple_z, '\0', 4);
+				strncpy (interpretation_triple_z, interpretation_z, 3);
+				format = remplacer (format, "%:::z", interpretation_triple_z);
 			}
-			else
-				format = remplacer (format, "%N", ".000000000");
+			if (strstr (format, "%N") != NULL) {
+				if (nb_date == 0) {
+					char nanoSec[10 + 1];
+					sprintf(nanoSec, "%lu", timestamp_avec_ns.tv_nsec);
+					format = remplacer (format, "%N", nanoSec);
+				}
+				else
+					format = remplacer (format, "%N", ".000000000");
+			}
+			
+			strftime(buffer, sizeof(buffer), format, date);
+			printf("%s\n", buffer);
 		}
-		
-		strftime(buffer, sizeof(buffer), format, date);
-		printf("%s\n", buffer);
+		else {
+			fprintf (stderr, "date: date incorrecte « %s »", date_donnee);
+
+		}
 	}
 	else if (!erreur && nb_format > 1)
 		fprintf (stderr, "date : plusieurs formats de fichiers de sortie indiqués\n");
