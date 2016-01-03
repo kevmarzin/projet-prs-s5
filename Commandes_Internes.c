@@ -1,171 +1,10 @@
 #include "Commandes_Internes.h"
-
-void supprimer_char (char *chaine, int pos){
-	int i = pos;
-	while (chaine[i] != '\0'){
-		chaine[i] = chaine[i+1];
-		i++;
-	}
-}
-
-int nbArguments (char **tab_args) {
-	int id_arg = 0;
-	while (tab_args[id_arg] != NULL)
-		id_arg++;
-	
-	return id_arg;
-}
-
-int estNombre (char *chaine) {
-	int i = 0;
-	int chaineEstNombre = 1;
-	
-	while (chaine[i] != '\0' && chaineEstNombre){
-		chaineEstNombre = isdigit(chaine[i]);
-		i++;
-	}
-	
-	return chaineEstNombre;
-}
+#include "Utilitaires.h"
 
 /*
- * Remplace toutes les occurrences de str_a_remplacer par str_remplacement dans chaîne
- * Renvoie le résultat si des occurrences sont trouvées sinon la chaîne source
- * Si les chaînes à remplacer commence par 
+ * Commande echo.
  */
-char *remplacer (char *chaine, const char *str_a_remplacer, const char *str_remplacement) {
-    char *sous_chaine = NULL;
-	char *res = NULL;
-
-	int taille_strRemplacee = strlen(str_a_remplacer);	
-	int cpt = 0;
-	int pos_sous_chaine = 0;
-    //On compte le nombre d'occurrences de str_a_remplacer dans chaîne
-	sous_chaine = strstr (chaine, str_a_remplacer);
-	
-	while (sous_chaine != NULL) {
-		cpt++;
-		pos_sous_chaine = (sous_chaine - chaine);
-		
-		if (pos_sous_chaine + taille_strRemplacee >= strlen(chaine))
-			sous_chaine = NULL;
-		else
-			sous_chaine = strstr (sous_chaine + taille_strRemplacee, str_a_remplacer);
-	}
-	
-	if (cpt > 0) {
-		int taille_retour = ( strlen(str_remplacement) - taille_strRemplacee ) * cpt + strlen(chaine);
-		
-		//allocation de la memoire pour le résultat et initialisation
-		res = malloc(taille_retour);
-		strcpy (res, "");
-		
-		int pos_curseur = 0;
-		sous_chaine = strstr (chaine, str_a_remplacer);
-		
-		//Tant que on trouve la chaîne à remplacer, on extrait la sous chaîne qui commence par la chaîne à remplacer
-		while (sous_chaine != NULL) {
-			//Calcul de la position de la sous chaîne trouvée dans la chaîne de départ
-			pos_sous_chaine = sous_chaine - chaine;
-			
-			//On met dans le résultat ce qu'il y a entre la dernière chaîne à remplacer trouvée et la sous chaîne trouvée (exclues)
-			strncat (res, chaine + pos_curseur, (pos_sous_chaine - pos_curseur));
-			
-			//Si la chaine ne contient pas à la position donnée une chaine du type "%%x" ou "%x est la chaîne à remplacer,
-			//on effectue le remplacement sinon on passe la chaîne à remplacer
-			if (str_a_remplacer[0] != '%' || chaine[pos_sous_chaine-1] != '%') 
-				//On met dans le résultat la chaîne de remplacement
-				strcat (res, str_remplacement);
-			else 
-				//On met dans le résultat la chaîne à remplacer privée de son premier '%'
-				strcat (res, str_a_remplacer);
-			
-			//On passe la chaîne à remplacer
-			pos_curseur = pos_sous_chaine + taille_strRemplacee;
-			
-			//Si on trouve une nouvelle occurrence de la chaîne à remplacer, on extrait la sous chaîne qui commence
-			//par la chaîne à remplacer et on continue
-			if (strstr (chaine + pos_curseur, str_a_remplacer) != NULL)
-				sous_chaine = strstr (chaine + pos_curseur, str_a_remplacer);
-			//Sinon on écrit ce qu'il reste dans la chaîne et on arrête la boucle
-			else {
-				strcat (res, chaine + pos_curseur);
-				sous_chaine = NULL;
-			}
-		}
-	}
-	
-    return (res != NULL) ? res : chaine;
-}
-
-void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique, int *arret_sortie) {
-	int i = 0;
-	
-	while (chaine[i] != '\0' && !(*arret_sortie)) {
-		if (interpreter_contre_oblique 	&& chaine[i] == '\\'
-										&& chaine[i+1] == '\\') {
-			switch (chaine[i+2]){
-				case 'a':
-					supprimer_char (chaine, i);
-					supprimer_char (chaine, i);
-					chaine[i] = '\a';
-					break;
-				case 'b':
-					supprimer_char (chaine, i);
-					supprimer_char (chaine, i);
-					chaine[i] = '\b';
-					break;
-				case 'c':
-					(*arret_sortie) = 1;
-					chaine[i] = '\0';
-					break;
-				case 'e':
-					supprimer_char (chaine, i);
-					supprimer_char (chaine, i);
-					chaine[i] = '\e';
-					break;
-				case 'f':
-					supprimer_char (chaine, i);
-					supprimer_char (chaine, i);
-					chaine[i] = '\f';
-					break;
-				case 'n':
-					supprimer_char (chaine, i);
-					supprimer_char (chaine, i);
-					chaine[i] = '\n';
-					break;
-				case 'r':
-					supprimer_char (chaine, i);
-					supprimer_char (chaine, i);
-					chaine[i] = '\r';
-					break;
-				case 't':
-					supprimer_char (chaine, i);
-					supprimer_char (chaine, i);
-					chaine[i] = '\t';
-					break;
-				case 'v':
-					supprimer_char (chaine, i);
-					supprimer_char (chaine, i);
-					chaine[i] = '\v';
-					break;
-				default:
-					supprimer_char (chaine, i);
-					i++;
-					break;
-			}
-		}
-		else if (chaine[i] == '\\' && !interpreter_contre_oblique) {
-			supprimer_char (chaine, i); // Suppression du '\'
-			i++; // Caractère suivant passé
-		}
-		
-		if (!(*arret_sortie))
-			i++;
-	}
-}
-
-int cmdInt_echo(char **args){
+void cmdInt_echo(char **args){
 	int id_arg = 0;
 	int id_arg_debut_affichage = -1;
 	
@@ -173,7 +12,9 @@ int cmdInt_echo(char **args){
 	int interpreter_contre_oblique = 0;
 	int arret_sortie = 0;
 	
+	//Lecture de tout les arguments de la commande, sauf si interpreter_contre_oblique && "\\c" présent dans la sortie
 	while (args[id_arg] != NULL && !arret_sortie) {
+		// Lecture des options, jusqu'à ce qu'une option inconnue soit lue
 		if (args[id_arg][0] == '-' 	&& strlen (args[id_arg]) == 2
 									&& id_arg_debut_affichage == -1) {
 			if (args[id_arg][1] == 'n')
@@ -189,13 +30,16 @@ int cmdInt_echo(char **args){
 			id_arg_debut_affichage = id_arg;
 		}
 		
+		//A partir de la lecture d'une option inconnue
 		if (id_arg_debut_affichage != -1){
 			if (id_arg > id_arg_debut_affichage)
 				printf (" ");
 			
 			char *affichage = args[id_arg];
+			//interprétation des '\\' de la sortie, suivant les options données
 			supprimer_contre_oblique_echo (affichage, interpreter_contre_oblique, &arret_sortie);
 			
+			//affichage de la sortie
 			printf ("%s", affichage);
 		}
 		
@@ -205,8 +49,6 @@ int cmdInt_echo(char **args){
 	
 	if (saut_de_ligne_final && !arret_sortie)
 		printf ("\n");
-	
-	return 1;
 }
 
 int cmdInt_history (char **args) {
@@ -493,13 +335,13 @@ int cmdInt_date (char **args){
 			if (strcmp(argument_iso8601, "date") == 0)
 				format = "%F";
 			else if (strcmp(argument_iso8601, "hours") == 0)
-				format = "%FT%H%z";
+				format = "%F %H%z";
 			else if (strcmp(argument_iso8601, "minutes") == 0)
-				format = "%FT%R%z";
+				format = "%F %R%z";
 			else if (strcmp(argument_iso8601, "seconds") == 0)
-				format = "%FT%T%z";
+				format = "%F %T%z";
 			else if (strcmp(argument_iso8601, "ns") == 0)
-				format = "%FT%R,%N%z";
+				format = "%F %R,%N%z";
 		}
 			
 		if (nb_date == 0) {

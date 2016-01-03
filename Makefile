@@ -3,8 +3,8 @@ YACC 	= yacc -d -v
 CC	= gcc -std=c99 -g -D_XOPEN_SOURCE=700 
 
 
-Shell: Shell.o Affichage.o Evaluation.o Commandes_Internes.o y.tab.o lex.yy.o
-	$(CC) -o Shell Shell.o Affichage.o Evaluation.o  Commandes_Internes.o y.tab.o lex.yy.o -lreadline -ly -ll
+Shell: Shell.o Affichage.o Evaluation.o Commandes_Internes.o Utilitaires.o y.tab.o lex.yy.o
+	$(CC) -o Shell Shell.o Affichage.o Evaluation.o  Commandes_Internes.o Utilitaires.o y.tab.o lex.yy.o -lreadline -ly -ll
 
 Shell.o: Shell.c Shell.h
 
@@ -14,6 +14,7 @@ Evaluation.o :  Shell.h Evaluation.h Evaluation.c
 
 Commandes_Internes.o : Shell.h Commandes_Internes.h Commandes_Internes.c
 
+Utilitaires.o : Commandes_Internes.h Utilitaires.h Utilitaires.c
 
 lex.yy.o: lex.yy.c y.tab.h Shell.h
 

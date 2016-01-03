@@ -8,10 +8,19 @@
 #include <sys/stat.h> 
 #include <unistd.h>
 
-extern void supprimer_char (char *chaine, int pos);
+/*
+ * Commande echo.
+ */
+extern void cmdInt_echo (char **args);
 
-extern int cmdInt_echo (char **args);
+/*
+ * Commande history.
+ */
 extern int cmdInt_history (char **args);
+
+/*
+ * Commande date.
+ */
 extern int cmdInt_date (char **args);
 
 #endif
