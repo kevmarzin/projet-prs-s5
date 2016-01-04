@@ -9,6 +9,11 @@
 extern char **split_str (char* src, const char *separateur);
 
 /*
+ * Renvoie 1 si la chaine src finie par la chaine de caractère sufixe, 0 sinon.
+ */
+extern int finie_par (const char *src, const char *sufixe);
+
+/*
  * Renvoie 1 si la chaine src commence par la chaine de caractère prefixe, 0 sinon.
  */
 extern int commence_par (const char *src, const char *prefixe);

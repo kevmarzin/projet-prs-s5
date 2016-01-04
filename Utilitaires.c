@@ -1,5 +1,18 @@
 #include "Utilitaires.h"
 
+char *str_to_lower (const char* src) {
+	int taille_src = strlen (src);
+	char *res = malloc (taille_src);
+	
+	int i = 0;
+	for(i = 0; i < taille_src - 1; i++)
+		res[i] = tolower(src[i]);
+	
+	res[taille_src - 1 ] = '\0';
+	
+	return res;
+}
+
 char **split_str (char* src, const char *separateur) {
 	char** res = calloc(100, sizeof(char*));
 	int i = 0;
@@ -12,6 +25,11 @@ char **split_str (char* src, const char *separateur) {
 	res[i] = NULL;
 	
 	return res;
+}
+
+int finie_par (const char *src, const char *sufixe){
+    char *res = strstr (src, sufixe);
+    return (res != NULL) && (strlen (res) == strlen (sufixe));
 }
 
 int commence_par (const char *src, const char *prefixe) {
