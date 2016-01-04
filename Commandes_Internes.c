@@ -534,3 +534,72 @@ int cmdInt_date (char **args){
 		fprintf (stderr, "date : les options pour indiquer les dates d'impression sont mutuellement exclusives\n");
 	return 1;
 }
+
+void cmdInt_kill (char **args) 
+{
+    int id_arg = 0;
+    int erreur = 0;
+    int id_liste_signaux = 0;
+	
+	while (args[id_arg] != NULL && !erreur) {
+        if (args[id_arg][0] == '-')
+        {
+            if (estNombre(args[id_arg] + 1)) {
+                int num_signal = atoi(args[id_arg] + 1);
+                if (0 < num_signal && num_signal < 32)
+                    kill(atoi(args[id_arg + 1]), num_signal);
+                else
+                    fprintf(stderr, "EINVAL");
+            }
+            else {
+                int trouve = 0;
+                while (id_liste_signaux < 32 && !trouve) {
+                    if (sont_egales(strsignal(id_liste_signaux), args[id_arg] + 1)) {
+                        trouve = 1;
+                        kill(atoi(args[id_arg + 1]), id_liste_signaux);
+                    }
+                    else
+                        id_liste_signaux++;
+                }
+                if (!trouve)
+                    fprintf(stderr, "EINVAL");
+            }
+        }
+		if (sont_egales(args[ig_arg], "-s") || sont_egales(args[id_arg], "--signal"))
+        {
+            if (args[id_arg + 1] != NULL && estNombre(args[id_arg + 1])) {
+                int num_signal = atoi(args[id_arg + 1]);
+                if (0 < num_signal && num_signal < 32)
+                    kill(atoi(args[id_arg + 2]), num_signal);
+                else
+                    fprintf(stderr, "EINVAL");
+            }
+            
+        }
+        if (sont_egales(args[ig_arg], "-l") || sont_egales(args[id_arg], "--list"))
+        {
+            int ig_arg_liste_signaux = id_arg;
+            int num_signal = atoi(args[id_arg_liste_signaux]);
+            while (args[id_arg_liste_signaux] != NULL) 
+            {
+                if (estNombre(num_signal) && (0 < num_signal && num_signal < 32))
+                    printf(strsignal(num_signal) + 3);
+                else if (!estNombre(num_signal)) {
+                    int trouve = 0;
+                    id_liste_signaux = 0;
+                    while (id_liste_signaux < 32 && !trouve) {
+                        if (sont_egales(strsignal(id_liste_signaux), num_signal)) {
+                            trouve = 1;
+                            printf(strsignal(id_liste_signaux) + 3);
+                        }
+                        else
+                            id_liste_signaux++;
+                    }
+                }
+            
+            }
+	
+		id_arg++;
+        }
+    }
+}
