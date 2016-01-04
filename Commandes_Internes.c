@@ -604,16 +604,31 @@ void cmdInt_kill (char **args)
 			}
 		}
 		if (sont_egales(args[id_arg], "-s") || sont_egales(args[id_arg], "--signal")){
-			if (args[id_arg + 1] != NULL && estNombre(args[id_arg + 1])) {
-				int num_signal = atoi(args[id_arg + 1]);
-				if (0 < num_signal && num_signal < 32)
-					kill(atoi(args[id_arg + 2]), num_signal);
-				else
-					fprintf(stderr, "EINVAL");
+			if (args[id_arg + 1] != NULL) {
+				if (estNombre(args[id_arg + 1])) {
+					int num_signal = atoi(args[id_arg + 1]);
+					if (0 < num_signal && num_signal < 32)
+						kill(atoi(args[id_arg + 2]), num_signal);
+					else
+						fprintf(stderr, "EINVAL");
+				}
+				else {
+					int trouve = 0;
+					while (id_liste_signaux < 32 && !trouve) {
+						if (sont_egales(strsignal(id_liste_signaux), args[id_arg + 1])) {
+							trouve = 1;
+							kill(atoi(args[id_arg + 2]), id_liste_signaux);
+						}
+						else
+							id_liste_signaux++;
+					}
+					if (!trouve)
+						fprintf(stderr, "EINVAL");
+				}
 			}
 		}
-		/*if (sont_egales(args[id_arg], "-l") || sont_egales(args[id_arg], "--list")){
-			int id_arg_liste_signaux = id_arg;
+		if (sont_egales(args[id_arg], "-l") || sont_egales(args[id_arg], "--list")){
+			int id_arg_liste_signaux = id_arg + 1;
 			int num_signal = atoi(args[id_arg_liste_signaux]);
 			while (args[id_arg_liste_signaux] != NULL) {
 				if (estNombre(num_signal) && (0 < num_signal && num_signal < 32))
@@ -629,9 +644,13 @@ void cmdInt_kill (char **args)
 						else
 							id_liste_signaux++;
 					}
+					if (!trouve)
+						fprintf(stderr, "EINVAL");
 				}
 			}
-		id_arg++;
-		}*/
+		}
+		if (args[id_arg][0] != '-') {
+			kill(args[id_arg], 15); //SIGTERM par défaut (15)
+		}
 	}
 }
