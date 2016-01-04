@@ -1,23 +1,12 @@
 #include "Commandes_Internes.h"
 #include "Utilitaires.h"
 
-char **split_str (const char* src, const char *comparateur) {
-    char** res = calloc(100, sizeof(char*));
-    int i = 0;
-    char* token = strtok(src, comparateur);
-    while (token != NULL && i < 100) {
-		res[i] = token;
-		token = strtok(NULL, comparateur);
-		i++;
-	}
-    return res;
-}
-
 struct tm *analyser_date (char *date_donnee) {
-	struct tm *date = NULL;
+	time_t timestamp = time(NULL);
+	struct tm *date = localtime (&timestamp);
+	int erreur = 0;
+	
 	if (estNombre (date_donnee)) {
-		time_t timestamp = time(NULL);
-		date = localtime (&timestamp);
 		if (strlen (date_donnee) <= 4 && strlen (date_donnee) >= 1) {
 			date->tm_sec = 0;
 			date->tm_min = 0;
@@ -31,9 +20,58 @@ struct tm *analyser_date (char *date_donnee) {
 		}
 	}
 	else {
-		
+		char **mots = split_str(date_donnee, " ");
+		if (mots[0] != NULL && sont_egales (str_to_lower(mots[0]), "next") && mots[1] != NULL)
+			erreur = next_date (date, str_to_lower (mots[1]));
+		else if (mots[0] != NULL && finie_par(str_to_lower(date_donnee), "ago") && nbArguments(mots) == 3 && estNombre (mots[0]))
+			erreur = ago_date (date, atoi(mots[0]), str_to_lower(mots[1]));
+			
 	}
+	
+	if (erreur) {
+		date = NULL;
+		fprintf (stderr, "date: date incorrecte « %s »\n", date_donnee);
+	}
+	
 	return date;
+}
+
+int ago_date (struct tm *date, int nbr, char *mot){
+	if(sont_egales(mot, "year"))
+		date->tm_year -= nbr;
+	else if(sont_egales(mot, "day"))
+		date->tm_mday -= nbr;
+	else if(sont_egales(mot, "month"))
+		date->tm_mon -= nbr;
+	else if(sont_egales(mot, "hour"))
+		date->tm_hour -= nbr;
+	else if(sont_egales(mot, "minute"))
+		date->tm_min -= nbr;
+	else if(sont_egales(mot, "second"))
+		date->tm_sec -= nbr;
+	else
+		return 0;
+	
+	return 1;
+}
+
+int next_date (struct tm *date, char *mot){
+	if(sont_egales(mot, "year"))
+		date->tm_year++;
+	else if(sont_egales(mot, "day"))
+		date->tm_mday++;
+	else if(sont_egales(mot, "month"))
+		date->tm_mon++;
+	else if(sont_egales(mot, "hour"))
+		date->tm_hour++;
+	else if(sont_egales(mot, "minute"))
+		date->tm_min++;
+	else if(sont_egales(mot, "second"))
+		date->tm_sec++;
+	else
+		return 0;
+	
+	return 1;
 }
 
 void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique, int *arret_sortie) {
