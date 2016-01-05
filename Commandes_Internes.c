@@ -640,59 +640,166 @@ void cmdInt_kill (char **args)
 	int id_arg = 0;
 	int erreur = 0;
 	int id_liste_signaux = 0;
+	int id_liste_proc = 0;
+	int trouve = 0;
+	int num_signal = 0;
 	
 	while (args[id_arg] != NULL && !erreur) {
-		if (args[id_arg][0] == '-'){
-			if (estNombre(args[id_arg] + 1)) {
-				int num_signal = atoi(args[id_arg] + 1);
-				if (0 < num_signal && num_signal < 32)
-					kill(atoi(args[id_arg + 1]), num_signal);
-				else
-					fprintf(stderr, "EINVAL");
+		if (id_arg == 1 || id_arg == 2) {
+			if (sont_egales(args[id_arg], "-1")) 
+				fprintf(stderr, "On ne peut pas tuer tous les processus\n");
+		}
+		
+		if (args[id_arg][0] != '-') {
+			id_liste_proc = id_arg;
+			while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])) {
+				kill(atoi(args[id_liste_proc]), 15); //SIGTERM par défaut (15)
+				id_liste_proc++;
 			}
-			else {
-				int trouve = 0;
-				while (id_liste_signaux < 32 && !trouve) {
-					if (sont_egales(strsignal(id_liste_signaux), args[id_arg] + 1)) {
-						trouve = 1;
-						kill(atoi(args[id_arg + 1]), id_liste_signaux);
+			if (!estNombre(args[id_liste_proc])) {
+				fprintf(stderr, "ESRCH\n");
+				erreur = 1;
+			}
+		}
+		else {
+			if (sont_egales(args[id_arg], "-s") || sont_egales(args[id_arg], "--signal")){
+				if (args[++id_arg] != NULL) {
+					if (estNombre(args[id_arg])) {
+						num_signal = atoi(args[id_arg]);
+						if (0 < num_signal && num_signal < 32) {
+							id_liste_proc = ++id_arg;
+							while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])) {
+								kill(atoi(args[id_liste_proc]), num_signal);
+								id_liste_proc++;
+							}
+							if (args[id_liste_proc] != NULL && !estNombre(args[id_liste_proc])) {
+								fprintf(stderr, "ESRCH\n");
+								erreur = 1;
+							}	
+							else
+								id_arg = id_liste_proc + 1;
+						}
+						else {
+							fprintf(stderr, "EINVAL\n");
+							erreur = 1;
+						}
 					}
-					else
-						id_liste_signaux++;
+					else {
+						trouve = 0;
+						id_liste_signaux = 0;
+						while (id_liste_signaux < 32 && !trouve) {
+							if (sont_egales(strsignal(id_liste_signaux), args[id_arg]) ||
+							sont_egales(strsignal(id_liste_signaux) + 3, args[id_arg])) {
+								trouve = 1;
+								id_liste_proc = ++id_arg;
+								while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])) {
+									kill(atoi(args[id_liste_proc]), id_liste_signaux);
+									id_liste_proc++;
+								}
+								if (args[id_liste_proc] != NULL && !estNombre(args[id_liste_proc])) {
+									fprintf(stderr, "ESRCH\n");
+									erreur = 1;
+								}
+								else
+									id_arg = id_liste_proc + 1;
+							}
+							else
+								id_liste_signaux++;
+						}
+						if (!trouve) {
+							fprintf(stderr, "EINVAL\n");
+							erreur = 1;
+						}
+					}
 				}
-				if (!trouve)
-					fprintf(stderr, "EINVAL");
+				else {
+					id_arg--;
+					fprintf(stderr, "Numéro ou nom de signal invalide\n");
+					erreur = 1;
+				}
 			}
-		}
-		if (sont_egales(args[id_arg], "-s") || sont_egales(args[id_arg], "--signal")){
-			if (args[id_arg + 1] != NULL && estNombre(args[id_arg + 1])) {
-				int num_signal = atoi(args[id_arg + 1]);
-				if (0 < num_signal && num_signal < 32)
-					kill(atoi(args[id_arg + 2]), num_signal);
-				else
-					fprintf(stderr, "EINVAL");
+			else if (sont_egales(args[id_arg], "-l") || sont_egales(args[id_arg], "--list")){
+				int id_arg_liste_signaux = ++id_arg;
+				if (args[id_arg_liste_signaux] == NULL) {
+					int it;
+					for (it = 1; it < 32; it++)
+						printf("%d) %s\n", it, strsignal(it));
+				}
+				while (args[id_arg_liste_signaux] != NULL) {
+					if (estNombre(args[id_arg_liste_signaux]) && (0 < atoi(args[id_arg_liste_signaux]) 
+															&& atoi(args[id_arg_liste_signaux]) < 32))
+						printf(strsignal(atoi(args[id_arg_liste_signaux])) + 3);
+					else if (!estNombre(args[id_arg_liste_signaux])) {
+						trouve = 0;
+						id_liste_signaux = 0;
+						while (id_liste_signaux < 32 && !trouve) {
+							if (sont_egales(strsignal(id_liste_signaux), args[id_arg_liste_signaux]) ||
+							sont_egales(strsignal(id_liste_signaux) + 3, args[id_arg_liste_signaux])) {
+								trouve = 1;
+								printf(strsignal(id_liste_signaux) + 3);
+							}
+							else
+								id_liste_signaux++;
+						}
+						if (!trouve) {
+							fprintf(stderr, "EINVAL\n");
+							erreur = 1;
+						}
+					}
+					id_arg_liste_signaux++;
+				}
+				id_arg = id_arg_liste_signaux;
 			}
-		}
-		/*if (sont_egales(args[id_arg], "-l") || sont_egales(args[id_arg], "--list")){
-			int id_arg_liste_signaux = id_arg;
-			int num_signal = atoi(args[id_arg_liste_signaux]);
-			while (args[id_arg_liste_signaux] != NULL) {
-				if (estNombre(num_signal) && (0 < num_signal && num_signal < 32))
-					printf(strsignal(num_signal) + 3);
-				else if (!estNombre(num_signal)) {
-					int trouve = 0;
+			else if (args[id_arg][0] == '-'){
+				if (estNombre(args[id_arg] + 1)) {
+					num_signal = atoi(args[id_arg] + 1);
+					if (0 < num_signal && num_signal < 32) {
+						id_liste_proc = ++id_arg;
+						while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])) {
+							kill(atoi(args[id_liste_proc]), num_signal);
+							id_liste_proc++;
+						}
+						if (args[id_liste_proc] != NULL && !estNombre(args[id_liste_proc])) {
+							fprintf(stderr, "ESRCH\n");
+							erreur = 1;
+						}
+						else
+							id_arg = id_liste_proc + 1;
+					}
+					else {
+						fprintf(stderr, "EINVAL\n");
+						erreur = 1;
+					}
+				}
+				else {
+					trouve = 0;
 					id_liste_signaux = 0;
 					while (id_liste_signaux < 32 && !trouve) {
-						if (sont_egales(strsignal(id_liste_signaux), num_signal)) {
+						if (sont_egales(strsignal(id_liste_signaux), args[id_arg] + 1) ||
+							sont_egales(strsignal(id_liste_signaux) + 3, args[id_arg] + 1)) {
 							trouve = 1;
-							printf(strsignal(id_liste_signaux) + 3);
+							id_liste_proc = ++id_arg;
+							while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])) {
+								kill(atoi(args[id_liste_proc]), id_liste_signaux);
+								id_liste_proc++;
+							}
+							if (args[id_liste_proc] != NULL && !estNombre(args[id_liste_proc])) {
+								fprintf(stderr, "ESRCH\n");
+								erreur = 1;
+							}
+							else
+								id_arg = id_liste_proc + 1;
 						}
 						else
 							id_liste_signaux++;
 					}
+					if (!trouve) {
+						fprintf(stderr, "EINVAL\n");
+						erreur = 1;
+					}
 				}
 			}
-		id_arg++;
-		}*/
+		}
 	}
 }
+
