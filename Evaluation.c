@@ -9,6 +9,8 @@ int evaluer_expr_simple (char **args){
 		cmdInt_history (args + 1);
 	else if (strcmp (args[0], "date") == 0)
 		cmdInt_date (args + 1);
+	else if (strcmp (args[0], "kill") == 0)
+		cmdInt_kill (args + 1);
 	else
 		fprintf (stderr, "%s : commande introuvable\n", args[0]);
 }

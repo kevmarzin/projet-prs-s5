@@ -24,4 +24,9 @@ extern int cmdInt_history (char **args);
  */
 extern int cmdInt_date (char **args);
 
+/*
+ * Commande kill.
+ */
+extern void cmdInt_kill (char **args);
+
 #endif
