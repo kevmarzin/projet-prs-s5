@@ -3,10 +3,7 @@
 
 #include "Commandes_Internes.h"
 
-/*
- * Applique la fonction tolower à tout les caractère de la chaine src et renvoie le résultat
- */
-extern char *str_to_lower (const char* src);
+extern char * strtolower(const char * s);
 
 /*
  * Split la chaine src en fonction du separateur. Résultat renvoyé dans un tableau avec la dernière case égale à NULL

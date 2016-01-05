@@ -1,6 +1,55 @@
 #include "Commandes_Internes.h"
 #include "Utilitaires.h"
 
+#include <readline/history.h>
+
+int calcul_date (struct tm *date, int nbr, const char *mot){
+	int jour_semaine = 	(sont_egales (mot, "sun") || sont_egales (mot, "sunday"))	? 0 :
+						(sont_egales (mot, "mon") || sont_egales (mot, "monday"))	? 1 :
+						(sont_egales (mot, "tue") || sont_egales (mot, "tuesday"))	? 2 :
+						(sont_egales (mot, "wed") || sont_egales (mot, "wednesday"))? 3 :
+						(sont_egales (mot, "thu") || sont_egales (mot, "thursday"))	? 4 :
+						(sont_egales (mot, "fri") || sont_egales (mot, "friday"))	? 5 :
+						(sont_egales (mot, "sat") || sont_egales (mot, "saturday"))	? 6 : -1;
+	
+	time_t date_en_secondes = mktime(date);
+	printf ("%d / %s\n", nbr, mot);
+	if(sont_egales(mot, "year")) {
+		date->tm_year += nbr;
+		mktime(date); // Maj du numéro du jour de la semaine
+	}else if(sont_egales(mot, "month")) {
+		int annee_suivante = 0;
+		date->tm_mon = (annee_suivante = ((date->tm_mon + nbr) > 11)) ? 0 : (date->tm_mon + nbr);
+		date->tm_year = annee_suivante ? (date->tm_year + 1) : date->tm_year;
+		mktime(date);
+	}
+	else if(sont_egales(mot, "day")) {
+		date_en_secondes += nbr * (60*60*24);
+		date = localtime(&date_en_secondes);
+	}
+	else if(sont_egales(mot, "hour")){
+		date_en_secondes += nbr * (60*60);
+		date = localtime(&date_en_secondes);
+	}
+	else if(sont_egales(mot, "minute")){
+		date_en_secondes += nbr * 60;
+		date = localtime(&date_en_secondes);
+	}
+	else if(sont_egales(mot, "second")) {
+		date_en_secondes += nbr * 60;
+		date = localtime(&date_en_secondes);
+	}
+	else if (nbr == 1 && jour_semaine != -1) {
+		int nb_jour = jour_semaine - date->tm_wday;
+		nb_jour = nb_jour <= 0  ? nb_jour + 7 : nb_jour;
+		calcul_date (date, nb_jour, "day");
+	}
+	else
+		return 0;
+	
+	return 1;
+}
+
 struct tm *analyser_date (char *date_donnee) {
 	time_t timestamp = time(NULL);
 	struct tm *date = localtime (&timestamp);
@@ -21,58 +70,27 @@ struct tm *analyser_date (char *date_donnee) {
 	}
 	else {
 		char **mots = split_str(date_donnee, " ");
-		char *str = str_to_lower(mots[0]);
-		/*if (mots[0] != NULL && sont_egales (, "next") && mots[1] != NULL)
-			erreur = next_date (date, str_to_lower (mots[1]));
-		else if (mots[0] != NULL && finie_par(str_to_lower(date_donnee), "ago") && nbArguments(mots) == 3 && estNombre (mots[0]))
-			erreur = ago_date (date, atoi(mots[0]), str_to_lower(mots[1]));
-			*/
+		
+		int nb_mots = nbArguments(mots);
+		char *mot_lower;
+		
+		if (nb_mots > 0){
+			 char input[]= "Diego De La Vega";
+			//mot_lower = malloc (strlen(mots[0]) + 1);
+			printf ("%s / %s\n", (mot_lower = strtolower(mots[0])), mots[0]);
+			/*if (sont_egales (strtolower(mot_lower, mots[0]), "next") && mots[1] != NULL)
+				erreur = !(calcul_date (date, 1, mots_lower[1]));
+			else if (nb_mots == 3 && sont_egales( mots_lower[nb_mots - 1], "ago") && estNombre (mots[0]))
+				erreur = !(calcul_date (date, atoi(mots[0]) * -1, mots_lower[1]));*/
+		}
+		/*else if (strptime(date_donnee, "%T", date);
+				 if (strptime(date_donnee, "%T", date);
+		else {
+			strptime(date_donnee, "%a, %d %b %Y %T", date);
+		}*/
 	}
 	
-	if (erreur) {
-		date = NULL;
-		fprintf (stderr, "date: date incorrecte « %s »\n", date_donnee);
-	}
-	
-	return date;
-}
-
-int ago_date (struct tm *date, int nbr, char *mot){
-	if(sont_egales(mot, "year"))
-		date->tm_year -= nbr;
-	else if(sont_egales(mot, "day"))
-		date->tm_mday -= nbr;
-	else if(sont_egales(mot, "month"))
-		date->tm_mon -= nbr;
-	else if(sont_egales(mot, "hour"))
-		date->tm_hour -= nbr;
-	else if(sont_egales(mot, "minute"))
-		date->tm_min -= nbr;
-	else if(sont_egales(mot, "second"))
-		date->tm_sec -= nbr;
-	else
-		return 0;
-	
-	return 1;
-}
-
-int next_date (struct tm *date, char *mot){
-	if(sont_egales(mot, "year"))
-		date->tm_year++;
-	else if(sont_egales(mot, "day"))
-		date->tm_mday++;
-	else if(sont_egales(mot, "month"))
-		date->tm_mon++;
-	else if(sont_egales(mot, "hour"))
-		date->tm_hour++;
-	else if(sont_egales(mot, "minute"))
-		date->tm_min++;
-	else if(sont_egales(mot, "second"))
-		date->tm_sec++;
-	else
-		return 0;
-	
-	return 1;
+	return !erreur ? date : NULL;
 }
 
 void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique, int *arret_sortie) {
@@ -302,10 +320,9 @@ int cmdInt_history (char **args) {
 	return 1;
 }
 
-int cmdInt_date (char **args){
+void cmdInt_date (char **args){
 	int id_arg = 0;
 	
-	char *afficher_date = NULL;
 	char *modifier_date = NULL;
 	
 	char *format = NULL;
@@ -313,6 +330,7 @@ int cmdInt_date (char **args){
 	
 	int nb_date = 0;
 	char *fichier_date_modification = NULL;
+	char *fichier_dates = NULL;
 	char *date_donnee = NULL;
 	char *argument_iso8601 = NULL;
 	/*
@@ -327,7 +345,6 @@ int cmdInt_date (char **args){
 	 * rfc-3339 prioritaire sur -d
 	 */
 	int erreur = 0;
-	
 	while (args[id_arg] != NULL && !erreur) {
 		if (sont_egales (args[id_arg], "-d")|| sont_egales (args[id_arg], "--date") 
 											|| (commence_par (args[id_arg], "--date") 
@@ -341,10 +358,34 @@ int cmdInt_date (char **args){
 				date_donnee = args[id_arg] + strlen ("--date=");
 			else
 				date_donnee = "";
+			
 		}
-		else if (strcmp(args[id_arg], "-f") == 0 || strcmp(args[id_arg], "--file=") == 0)
-			;//modifier_date = args[++id_arg];
-		// si ça commence par -I OU (si ça commence par iso-8601 ET (si ça commence par iso-8601 et que l'argument est plus long, il y a forcément un '=' qui suit))
+		else if (commence_par (args[id_arg], "-f")	|| sont_egales (args[id_arg], "--file") 
+													|| (commence_par (args[id_arg], "--file="))) {
+			nb_date++;
+			if (sont_egales (args[id_arg], "-f") || sont_egales (args[id_arg], "--file")) {
+				if (args[id_arg + 1] != NULL)
+					fichier_dates = args[++id_arg];
+				else {
+					erreur = 1;
+					fprintf (stderr, "date: l'option %s requiert un argument\n", args[id_arg]);
+				}
+			}
+			else if (commence_par (args[id_arg], "-f")) 
+				fichier_dates = args[id_arg] + strlen("-f");
+			else if (commence_par (args[id_arg], "--file="))
+				fichier_dates = args[id_arg] + strlen("--file=");
+			
+			FILE* fic;
+			if (!erreur && (fic = fopen(fichier_dates, "r")) != NULL ) {
+				fclose (fic);
+			}
+			else if (!erreur) {
+				erreur = 1;
+				fprintf (stderr, "date : %s : Aucun fichier ou dossier de ce type\n", fichier_dates);
+			}
+
+		}
 		else if (	(strlen(args[id_arg]) >= 2 	&& args[id_arg][0] == '-' 
 												&& args[id_arg][1] == 'I') 
 					|| ((strstr(args[id_arg], "--iso-8601") != NULL && (strlen(strstr(args[id_arg], "--iso-8601")) == strlen(args[id_arg])))
@@ -490,7 +531,6 @@ int cmdInt_date (char **args){
 			else if (strcmp(argument_iso8601, "ns") == 0)
 				format = "%F %R,%N%z";
 		}
-			
 		if (nb_date == 0) {
 			clock_gettime (CLOCK_REALTIME, &timestamp_avec_ns);
 			timestamp = timestamp_avec_ns.tv_sec;
@@ -517,9 +557,32 @@ int cmdInt_date (char **args){
 				else if ((date = analyser_date (date_donnee)) == NULL)
 					erreur = 1;
 			}
+			else if (fichier_dates != NULL){
+				char *args_nouvelle_cmd[3];
+				args_nouvelle_cmd[0] = "-d";
+				args_nouvelle_cmd[2] = NULL;
+				
+				FILE *fd;
+				char str_date[60];
+				fd = fopen(fichier_dates, "r"); // Ouverture du fichier
+				
+				if (fd != NULL){
+					while ( fgets (str_date, 60, fd) != NULL ) {
+						str_date[strlen(str_date)-1] = '\0';
+						args_nouvelle_cmd[1] = str_date;
+						cmdInt_date (args_nouvelle_cmd);
+					}
+					
+					fclose(fd);
+				}
+				else {
+					fprintf (stderr, "date : problème lors de l'ouverture du fichier ressayer\n");
+				}
+				
+			}
 		}
 		
-		if (!erreur) {
+		if (!erreur && fichier_dates == NULL) {
 			if (strstr (format, "%k") != NULL)
 				format = remplacer (format, "%k", "%_H");
 			
@@ -562,16 +625,14 @@ int cmdInt_date (char **args){
 			strftime(buffer, sizeof(buffer), format, date);
 			printf("%s\n", buffer);
 		}
-		else {
-			fprintf (stderr, "date: date incorrecte « %s »", date_donnee);
-
+		else if (fichier_dates == NULL) {
+			fprintf (stderr, "date: date incorrecte « %s »\n", date_donnee);
 		}
 	}
 	else if (!erreur && nb_format > 1)
 		fprintf (stderr, "date : plusieurs formats de fichiers de sortie indiqués\n");
 	else if (!erreur && nb_date > 1)
 		fprintf (stderr, "date : les options pour indiquer les dates d'impression sont mutuellement exclusives\n");
-	return 1;
 }
 
 void cmdInt_kill (char **args) 

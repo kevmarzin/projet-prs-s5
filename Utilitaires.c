@@ -1,28 +1,39 @@
 #include "Utilitaires.h"
 
-char *str_to_lower (const char* src) {
-	int taille_src = strlen (src);
-	char *res = malloc (taille_src);
+char * strtolower(const char * s) {
+	char *res = malloc (strlen (s) + 1);
+	memset (res, '\0', strlen (s) + 1);
 	
-	int i = 0;
-	for(i = 0; i < taille_src - 1; i++)
-		res[i] = tolower(src[i]);
-	
-	res[taille_src - 1 ] = '\0';
-	
-	return res;
+	size_t i = 0;
+	while (s[i] != '\0'){
+		if (isalpha(s[i]))
+			res[i] = tolower(s[i]);
+		else 
+			res[i] = s[i];
+		i++;
+	}
+	printf("\"%s\" = \"%s\"\n", s, res);
+    return res;
 }
 
 char **split_str (char* src, const char *separateur) {
-	char** res = calloc(100, sizeof(char*));
+	char tmp [strlen (src)];
+	strcpy (tmp, src);
+	
+	char **res = malloc(100 * sizeof(char *));
+	for(int i=0; i<100; i++){
+		res[i] = malloc(20 * sizeof(char));
+		memset (res[i], '\0', 20);
+	}
+	
 	int i = 0;
-	char* token = strtok(src, separateur);
+	char* token = strtok(tmp, separateur);
 	while (token != NULL && i < 99) {
 		res[i] = token;
 		token = strtok(NULL, separateur);
 		i++;
 	}
-	res[i] = NULL;
+	res[i] = NULL;	
 	
 	return res;
 }
