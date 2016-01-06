@@ -8,6 +8,8 @@
 #include <sys/stat.h> 
 #include <unistd.h>
 #include <signal.h>
+#include <limits.h>
+#include <fcntl.h>
 
 /*
  * Commande echo.
@@ -28,6 +30,11 @@ extern int cmdInt_date (char **args);
  * Commande kill.
  */
 extern int cmdInt_kill (char **args);
+
+/*
+ * Commande hostname.
+ */
+extern int cmdInt_hostname (char **args);
 
 /*
  * Commande exit.

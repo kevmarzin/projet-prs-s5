@@ -9,7 +9,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-const char* signaux[] = {"Aucun signal",
+const char* SIGNAUX[NB_SIGNAUX] = {"Aucun signal",
 	"SIGHUP",
 	"SIGINT",
 	"SIGQUIT",

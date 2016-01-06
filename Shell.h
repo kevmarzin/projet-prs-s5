@@ -10,7 +10,8 @@
 #define TAILLE_ID 500
 #define NB_SIGNAUX 32
 
-const char* signaux[NB_SIGNAUX];
+const char* SIGNAUX[NB_SIGNAUX];
+	
 int EXIT_PROG;
 
 #define NB_PROCS_BG_MAX 100

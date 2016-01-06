@@ -33,6 +33,8 @@ int evaluer_expr_simple (char **args){
 		ret = cmdInt_kill (args + 1);
 	else if (strcmp (args[0], "exit") == 0)
 		ret = EXIT_PROG = cmdInt_exit ();
+	else if (strcmp (args[0], "hostname") == 0)
+		ret = cmdInt_hostname (args + 1);
 	else { //Commande externe exécutée
 		pid_t fpid;
 		if ((fpid = fork()) == 0) { /* Commande extern */
