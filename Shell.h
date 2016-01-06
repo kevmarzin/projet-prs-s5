@@ -9,6 +9,11 @@
 #define NB_ARGS 50
 #define TAILLE_ID 500
 
+#define NB_PROCS_BG_MAX 100
+
+pid_t PIDS_BG[NB_PROCS_BG_MAX];
+//char *NOM_PROCS_BG[NB_PROCS_BG_MAX];
+
 typedef enum expr_t {
 	VIDE,			// Commande vide 
 	SIMPLE,			// Commande simple 

@@ -189,6 +189,13 @@ int my_yyparse (void){
       `----------------------------------------------------------------------------------------*/
 
 int main (int argc, char **argv){
+	
+	memset (PIDS_BG, -1, NB_PROCS_BG_MAX);
+	/*
+	int i;
+	for (i = 0; i < NB_PROCS_BG_MAX; i++)
+		NOM_PROCS_BG[i] = NULL;
+	*/
 	// faire en sorte qu'interactive_mode = 0 lorsque le shell est distant 
 	if (interactive_mode) {
 		using_history ();

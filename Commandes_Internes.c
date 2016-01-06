@@ -163,13 +163,15 @@ void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique
 /*
  * Commande echo.
  */
-void cmdInt_echo(char **args){
+int cmdInt_echo(char **args){
 	int id_arg = 0;
 	int id_arg_debut_affichage = -1;
 	
 	int saut_de_ligne_final = 1;
 	int interpreter_contre_oblique = 0;
 	int arret_sortie = 0;
+	
+	int erreur = 0;
 	
 	//Lecture de tout les arguments de la commande, sauf si interpreter_contre_oblique && "\\c" présent dans la sortie
 	while (args[id_arg] != NULL && !arret_sortie) {
@@ -208,6 +210,8 @@ void cmdInt_echo(char **args){
 	
 	if (saut_de_ligne_final && !arret_sortie)
 		printf ("\n");
+	
+	return !erreur;
 }
 
 int cmdInt_history (char **args) {
@@ -317,10 +321,10 @@ int cmdInt_history (char **args) {
 		}
 	}
 	
-	return 1;
+	return !erreur;
 }
 
-void cmdInt_date (char **args){
+int cmdInt_date (char **args){
 	int id_arg = 0;
 	
 	char *modifier_date = NULL;
@@ -570,15 +574,15 @@ void cmdInt_date (char **args){
 					while ( fgets (str_date, 60, fd) != NULL ) {
 						str_date[strlen(str_date)-1] = '\0';
 						args_nouvelle_cmd[1] = str_date;
-						cmdInt_date (args_nouvelle_cmd);
+						if (cmdInt_date (args_nouvelle_cmd))
+							erreur = 1;
 					}
-					
 					fclose(fd);
 				}
 				else {
 					fprintf (stderr, "date : problème lors de l'ouverture du fichier ressayer\n");
+					erreur = 1;
 				}
-				
 			}
 		}
 		
@@ -627,15 +631,22 @@ void cmdInt_date (char **args){
 		}
 		else if (fichier_dates == NULL) {
 			fprintf (stderr, "date: date incorrecte « %s »\n", date_donnee);
+			erreur = 1;
 		}
 	}
-	else if (!erreur && nb_format > 1)
+	else if (!erreur && nb_format > 1) {
 		fprintf (stderr, "date : plusieurs formats de fichiers de sortie indiqués\n");
-	else if (!erreur && nb_date > 1)
+		erreur = 1;
+	}
+	else if (!erreur && nb_date > 1) {
 		fprintf (stderr, "date : les options pour indiquer les dates d'impression sont mutuellement exclusives\n");
+		erreur = 1;
+	}
+	
+	return !erreur;
 }
 
-void cmdInt_kill (char **args) 
+int cmdInt_kill (char **args) 
 {
 	int id_arg = 0;
 	int erreur = 0;
@@ -801,5 +812,6 @@ void cmdInt_kill (char **args)
 			}
 		}
 	}
+	return 0;
 }
 

@@ -33,7 +33,7 @@ char **split_str (char* src, const char *separateur) {
 		token = strtok(NULL, separateur);
 		i++;
 	}
-	res[i] = NULL;	
+	res[i] = NULL;
 	
 	return res;
 }

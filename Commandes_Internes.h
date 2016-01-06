@@ -12,7 +12,7 @@
 /*
  * Commande echo.
  */
-extern void cmdInt_echo (char **args);
+extern int cmdInt_echo (char **args);
 
 /*
  * Commande history.
@@ -22,11 +22,11 @@ extern int cmdInt_history (char **args);
 /*
  * Commande date.
  */
-extern void cmdInt_date (char **args);
+extern int cmdInt_date (char **args);
 
 /*
  * Commande kill.
  */
-extern void cmdInt_kill (char **args);
+extern int cmdInt_kill (char **args);
 
 #endif
