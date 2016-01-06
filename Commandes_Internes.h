@@ -29,4 +29,9 @@ extern int cmdInt_date (char **args);
  */
 extern int cmdInt_kill (char **args);
 
+/*
+ * Commande exit.
+ */
+extern int cmdInt_exit ();
+
 #endif

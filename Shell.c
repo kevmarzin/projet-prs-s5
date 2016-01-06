@@ -9,11 +9,43 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+const char* signaux[] = {"Aucun signal",
+	"SIGHUP",
+	"SIGINT",
+	"SIGQUIT",
+	"SIGILL",
+	"SIGTRAP",
+	"SIGABRT",
+	"SIGBUS",
+	"SIGFPE",
+	"SIGKILL",
+	"SIGUSR1",
+	"SIGSEGV",
+	"SIGUSR2",
+	"SIGPIPE",
+	"SIGALRM",
+	"SIGTERM",
+	"SIGSTKFLT",
+	"SIGCHLD",
+	"SIGCONT",
+	"SIGSTOP",
+	"SIGTSTP",
+	"SIGTTIN",
+	"SIGTTOU",
+	"SIGURG",
+	"SIGXCPU",
+	"SIGXFSZ",
+	"SIGVTALRM",
+	"SIGPROF",
+	"SIGWINCH",
+	"SIGIO",
+	"SIGPWR",
+	"SIGSYS"};
+
 extern int yyparse_string (char *);
 
 bool interactive_mode = 1;	// par défaut on utilise readline 
 int status = 0;			// valeur retournée par la dernière commande
-
 
 /*
  * Construit une expression à partir de sous-expressions
@@ -189,13 +221,14 @@ int my_yyparse (void){
       `----------------------------------------------------------------------------------------*/
 
 int main (int argc, char **argv){
-	
 	memset (PIDS_BG, -1, NB_PROCS_BG_MAX);
 	/*
 	int i;
 	for (i = 0; i < NB_PROCS_BG_MAX; i++)
 		NOM_PROCS_BG[i] = NULL;
 	*/
+	EXIT_PROG = 0;
+	
 	// faire en sorte qu'interactive_mode = 0 lorsque le shell est distant 
 	if (interactive_mode) {
 		using_history ();
@@ -204,7 +237,7 @@ int main (int argc, char **argv){
 		//  mode distant 
 	}
 
-	while (1){
+	while (!EXIT_PROG){
 		if (my_yyparse () == 0){/* L'analyse a abouti */
 			afficher_expr (ExpressionAnalysee);
 			evaluer_expr (ExpressionAnalysee);

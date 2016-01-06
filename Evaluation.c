@@ -31,6 +31,8 @@ int evaluer_expr_simple (char **args){
 		ret = cmdInt_date (args + 1);
 	else if (strcmp (args[0], "kill") == 0)
 		ret = cmdInt_kill (args + 1);
+	else if (strcmp (args[0], "exit") == 0)
+		ret = EXIT_PROG = cmdInt_exit ();
 	else { //Commande externe exécutée
 		pid_t fpid;
 		if ((fpid = fork()) == 0) { /* Commande extern */
@@ -45,19 +47,7 @@ int evaluer_expr_simple (char **args){
 		}
 	}
 	return ret;
-}/*
-VIDE, commande vide																	|
-      |   - SIMPLE, commande simple et ses arguments											|
-      |   - SEQUENCE, séquence (;) d'instructions												|
-      |   - SEQUENCE_ET, séquence conditionnelle (&&) d'instructions							|
-      |   - SEQUENCE_OU, séquence conditionnelle (||) d'instructions							|
-      |   - BG, tâche en arrière plan (&)														|
-      |   - PIPE, pipe (|).																		|
-      |   - REDIRECTION_I, redirection de l'entrée (<)											|
-      |   - REDIRECTION_O, redirection de la sortie (>)											|
-      |   - REDIRECTION_A, redirection de la sortie en mode APPEND (>>).						|
-      |   - REDIRECTION_E, redirection de la sortie erreur,  									|
-      |   - REDIRECTION_EO, redirection des sorties erreur et standard.			*/
+}
 
 int evaluer_expr (Expression *e){
 	int ret = 1;

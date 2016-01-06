@@ -146,3 +146,10 @@ char *remplacer (char *chaine, const char *str_a_remplacer, const char *str_remp
 	
     return (res != NULL) ? res : chaine;
 }
+
+
+int pidExiste(pid_t pid) 
+{
+	int res = 0;
+	return res;
+}
