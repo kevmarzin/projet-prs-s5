@@ -646,7 +646,7 @@ int cmdInt_date (char **args){
 	return !erreur;
 }
 
-int cmdInt_kill (char **args) 
+int cmdInt_kill (char **args)
 {
 	int id_arg = 0;
 	int erreur = 0;
@@ -707,8 +707,8 @@ int cmdInt_kill (char **args)
 						trouve = 0;
 						id_liste_signaux = 0;
 						while (id_liste_signaux < 32 && !trouve) {
-							if (sont_egales(signaux[id_liste_signaux], args[id_arg]) ||
-							sont_egales(signaux[id_liste_signaux] + 3, args[id_arg])) {
+							if (sont_egales(SIGNAUX[id_liste_signaux], args[id_arg]) ||
+							sont_egales(SIGNAUX[id_liste_signaux] + 3, args[id_arg])) {
 								trouve = 1;
 								id_liste_proc = ++id_arg;
 								while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
@@ -744,20 +744,20 @@ int cmdInt_kill (char **args)
 				if (args[id_arg_liste_signaux] == NULL) {
 					int it;
 					for (it = 1; it < 32; it++)
-						printf("%d) %s\n", it, signaux[it]);
+						printf("%d) %s\n", it, SIGNAUX[it]);
 				}
 				while (args[id_arg_liste_signaux] != NULL) {
 					if (estNombre(args[id_arg_liste_signaux]) && (0 < atoi(args[id_arg_liste_signaux]) 
 															&& atoi(args[id_arg_liste_signaux]) < 32))
-						printf("%s\n", signaux[atoi(args[id_arg_liste_signaux])] + 3);
+						printf("%s\n", SIGNAUX[atoi(args[id_arg_liste_signaux])] + 3);
 					else if (!estNombre(args[id_arg_liste_signaux])) {
 						trouve = 0;
 						id_liste_signaux = 0;
 						while (id_liste_signaux < 32 && !trouve) {
-							if (sont_egales(signaux[id_liste_signaux], args[id_arg_liste_signaux]) ||
-							sont_egales(signaux[id_liste_signaux] + 3, args[id_arg_liste_signaux])) {
+							if (sont_egales(SIGNAUX[id_liste_signaux], args[id_arg_liste_signaux]) ||
+							sont_egales(SIGNAUX[id_liste_signaux] + 3, args[id_arg_liste_signaux])) {
 								trouve = 1;
-								printf("%s\n", signaux[id_liste_signaux] + 3);
+								printf("%s\n", SIGNAUX[id_liste_signaux] + 3);
 							}
 							else
 								id_liste_signaux++;
@@ -798,8 +798,8 @@ int cmdInt_kill (char **args)
 					trouve = 0;
 					id_liste_signaux = 0;
 					while (id_liste_signaux < 32 && !trouve) {
-						if (sont_egales(signaux[id_liste_signaux], args[id_arg] + 1) ||
-							sont_egales(signaux[id_liste_signaux] + 3, args[id_arg] + 1)) {
+						if (sont_egales(SIGNAUX[id_liste_signaux], args[id_arg] + 1) ||
+							sont_egales(SIGNAUX[id_liste_signaux] + 3, args[id_arg] + 1)) {
 							trouve = 1;
 							id_liste_proc = ++id_arg;
 							while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
@@ -826,6 +826,68 @@ int cmdInt_kill (char **args)
 			}
 		}
 	}
+	return !erreur;
+}
+
+int cmdInt_hostname (char **args) 
+{
+	int erreur = 0;
+	int id_arg = 0;
+	char hostname[HOST_NAME_MAX];
+	
+	while (args[id_arg] != NULL && !erreur) 
+	{
+		if (sont_egales(args[id_arg], "-a") || sont_egales(args[id_arg], "--alias")) {
+			
+		}
+		else if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
+			
+		}
+		else if (sont_egales(args[id_arg], "-F") || sont_egales(args[id_arg], "--file")) {
+			if (args[++id_arg] != NULL) {
+				int fd = open(args[id_arg], O_RDONLY);
+				if (fd != -1) {
+					char c;
+					while (read(fd, &c, 1))
+						write(STDOUT_FILENO, &c, 1);
+				}
+				else {
+					fprintf(stderr, "Fichier inexistant\n");
+					erreur = 1;
+				}
+			}
+			else {
+				fprintf(stderr, "Entrez un nom de fichier\n");
+				erreur = 1;
+			}
+			
+		}
+		else if (args[id_arg][0] != '-') {
+			char *user = NULL;
+			user = getenv("USER");
+			if (strcmp(user, "root") == 0) {
+				if (args[id_arg] != NULL && strlen(args[id_arg]) < HOST_NAME_MAX)
+					sethostname(args[id_arg], sizeof(args[id_arg]));
+				else {
+					fprintf(stderr, "Argument vide ou trop long\n");
+					erreur = 1;
+				}
+			}
+			else {
+				fprintf(stderr, "Il faut être super utilisateur pour modifier le nom d'hôte\n");
+				erreur = 1;
+			}
+		}
+		
+		id_arg++;
+	}
+	
+	if (args[0] == NULL) 
+	{
+		if (gethostname(hostname, sizeof(hostname)) == 0);
+			printf("%s\n", hostname);
+	}
+	
 	return !erreur;
 }
 

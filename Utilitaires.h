@@ -47,6 +47,4 @@ extern int estNombre (char *chaine);
  */
 extern char *remplacer (char *chaine, const char *str_a_remplacer, const char *str_remplacement);
 
-extern int pidExiste(pid_t pid);
-
 #endif
