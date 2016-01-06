@@ -8,6 +8,10 @@
 
 #define NB_ARGS 50
 #define TAILLE_ID 500
+#define NB_SIGNAUX 32
+
+const char* signaux[NB_SIGNAUX];
+int EXIT_PROG;
 
 typedef enum expr_t {
 	VIDE,			// Commande vide 

@@ -27,6 +27,11 @@ extern void cmdInt_date (char **args);
 /*
  * Commande kill.
  */
-extern void cmdInt_kill (char **args);
+extern int cmdInt_kill (char **args);
+
+/*
+ * Commande exit.
+ */
+extern int cmdInt_exit ();
 
 #endif
