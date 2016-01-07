@@ -254,40 +254,46 @@ int cmdInt_history (char **args) {
 	int clear = 0;
 	int elem_a_suppr = -1;
 	
-	if (args[0] != NULL && args[0][0] == '-' && strlen(args[0]) > 1) {
-		int id_arg = 0;
-		int verif_chaine_finie = 0;
+	int options_anrw[] = { 0, 0, 0, 0 };
+	char *file_hist = NULL;
+	
+	int option_d = 0;
+	int options_ps[] = {0, 0};
+	char **option_ps_chaine = NULL;
+	
+	int id_arg = 0;
+	
+	if (args[id_arg] != NULL && args[id_arg][0] == '-' && strlen(args[id_arg]) > 1) {
 		int longueur_arg;
 		
 		while (!erreur && args[id_arg] != NULL) {
-			int id_char = 0;
-			
-			if (args[id_arg][id_char] == '-') {
+			if (args[id_arg][0] == '-') {
 				longueur_arg = strlen(args[id_arg]);
 					
-				if (sont_egales (args[id_arg], "-c"))
-					clear = 1;
-				else if (commence_par (args[id_arg], "-d")){
+				if (commence_par (args[id_arg], "-d")){
 					if (sont_egales(args[id_arg], "-d")){
 						id_arg ++;
-						if (args[id_arg] != NULL && estNombre (args[id_arg])) {
+						if (args[id_arg] != NULL && estNombre (args[id_arg])) { // l'argument existe et est un nombre
+							// On relève l'argument
 							elem_a_suppr = atoi (args[id_arg]);
+							
+							// Si 1 <= elem_a_suppr <= taillede l'historique, c'est bon sinon Erreur
 							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
 								erreur = 1;
 								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
 							}
 						}
-						else if (args[id_arg] != NULL) {
+						else if (args[id_arg] != NULL) { // L'argument n'est pas un nombre
 							fprintf (stderr, "history : %s : position dans l'historique hors plage\n", args[id_arg]);
 							erreur = 1;
 						}
-						else {
+						else { // Pas d'option après le -d
 							fprintf (stderr, "history : -d : l'option a besoin d'un argument\n");
 							erreur = 1;
 						}
 					}
-					else {
-						if (estNombre (args[id_arg] + 2)) {
+					else  { // Argument de -d collé
+						if (estNombre (args[id_arg] + 2)) { // vérification du type, nbr = c'est bon, sinon Erreur
 							elem_a_suppr = atoi (args[id_arg] + 2);
 							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
 								erreur = 1;
@@ -295,15 +301,108 @@ int cmdInt_history (char **args) {
 							}
 						}
 						else {
-							fprintf (stderr, "history : %s : argument numérique nécessaire\n", args[id_arg] + (id_char+1));
+							fprintf (stderr, "history : %s : argument numérique nécessaire\n", args[id_arg] + 2);
 							erreur = 1;
 						}
 					}
 				}
 				else {
-					erreur = 1;
-					fprintf (stderr, "history : -%c : option non valable\n", args[id_arg][id_char]);
-					fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
+					int id_char = 1;
+					while (args[id_arg][id_char] != '\0' && !erreur) {
+						char option_en_cours = args[id_arg][id_char];
+						if ((option_en_cours == 'a' || option_en_cours == 'n'
+												   || option_en_cours == 'r'
+												   || option_en_cours == 'w') && !options_ps[0]
+																			  && !options_ps[1]
+																			  && !clear
+																			  && !option_d) {
+							if (option_en_cours == 'a'  && !options_anrw[1]
+														&& !options_anrw[2]
+														&& !options_anrw[3]) {
+								options_anrw[0] = 1;
+								file_hist = args[id_arg + 1];
+							}
+							else if (option_en_cours == 'n' && !options_anrw[0]
+															&& !options_anrw[2]
+															&& !options_anrw[3]){
+								options_anrw[1] = 1;
+								file_hist = args[id_arg + 1];
+							}
+							else if (option_en_cours == 'r' && !options_anrw[0]
+															&& !options_anrw[1]
+															&& !options_anrw[3]) {
+								options_anrw[2] = 1;
+								file_hist = args[id_arg + 1];
+							}
+							else if (option_en_cours == 'w' && !options_anrw[0]
+															&& !options_anrw[2]
+															&& !options_anrw[2]) {
+								options_anrw[3] = 1;
+								file_hist = args[id_arg + 1];
+							}
+							else {
+								erreur = 1;
+								printf ("history: impossible d'utiliser plus d'une option parmi « -anrw »\n");
+							}
+						}
+						else if (option_en_cours == 'p'   && !options_anrw[0]
+																&& !options_anrw[1]
+																&& !options_anrw[2]
+																&& !options_anrw[3]
+																&& !clear
+																&& !option_d){
+							if (!options_ps[1]){
+								option_ps_chaine = args + (id_arg + 1);
+								options_ps[0] = 1;
+							}
+						}
+						else if (option_en_cours == 's'  && !options_anrw[0]
+															&& !options_anrw[1]
+															&& !options_anrw[2]
+															&& !options_anrw[3]
+															&& !clear
+															&& !option_d){
+							if (!options_ps[0]){
+								option_ps_chaine = args + (id_arg + 1);
+								options_ps[1] = 1;
+							}
+						}
+						else if (option_en_cours == 'd' && (options_anrw[0] || options_anrw[1]
+																			|| options_anrw[2]
+																			|| options_anrw[3]
+																			|| options_ps[0]
+																			|| options_ps[1])) {
+							erreur = 1;
+							fprintf (stderr, "history : options incompatibles\n");
+							fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
+						}
+						else if (option_en_cours == 'c' && !(options_anrw[0] || options_anrw[1]
+																			|| options_anrw[2]
+																			|| options_anrw[3]
+																			|| options_ps[0]
+																			|| options_ps[1])){
+							clear = 1;
+						}
+						else {
+							erreur = 1;
+							if (option_en_cours == 'c'  || option_en_cours == 'd'
+														|| option_en_cours == 'p'
+														|| option_en_cours == 's'
+														|| option_en_cours == 'a'
+														|| option_en_cours == 'n'
+														|| option_en_cours == 'r'
+														|| option_en_cours == 'w')
+								fprintf (stderr, "history : options incompatibles\n");
+							else
+								fprintf (stderr, "history : -%c : option non valable\n", option_en_cours);
+							fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
+						}
+						id_char++;
+					}
+					if (!erreur && (options_anrw[0] || options_anrw[1]
+													|| options_anrw[2]
+													|| options_anrw[0]))
+						id_arg++;
 				}
 			}
 			
@@ -327,7 +426,7 @@ int cmdInt_history (char **args) {
 			}
 			
 			while (hists[id_hist] != NULL && taille_hist > 0) {
-				printf("    %d\t%s\n", id_hist + 1, hists[id_hist]->line);
+				printf("  %d\t%s\n", id_hist + 1, hists[id_hist]->line);
 				id_hist++;
 			}
 		}
@@ -338,11 +437,60 @@ int cmdInt_history (char **args) {
 	}
 	
 	if (!erreur){
-		if (clear){
+		if (clear){ // history -c
 			clear_history();
 		}
-		else if (elem_a_suppr != -1){
-			free_history_entry (remove_history(elem_a_suppr-1));
+		else if (elem_a_suppr != -1){ // history -d n
+			free_history_entry (remove_history (elem_a_suppr - 1));
+		}
+		else if(options_ps[0]) { // history -p ...
+			int i = 0;
+			while (option_ps_chaine[i] != NULL){
+				printf("%s\n", option_ps_chaine[i]);
+				i++;
+			}
+			free_history_entry (remove_history (taille_hist - 1));
+		}
+		else if(options_ps[1]){
+			if ((nb_args = nbArguments(option_ps_chaine)) > 0){
+				char *nouvelle_entree = malloc(nb_args * 40 + nb_args);
+				memset (nouvelle_entree, '\0', nb_args * 40 + nb_args);
+				
+				int taille_chaine = 0;
+				int i = 0;
+				while (taille_chaine != -1 && option_ps_chaine[i] != NULL){
+					if (taille_chaine + strlen (option_ps_chaine[i]) < nb_args * 40 + nb_args - 1) {
+						strcat (nouvelle_entree, option_ps_chaine[i]);
+						strcat (nouvelle_entree, " ");
+						taille_chaine += strlen (option_ps_chaine[i]) + 1;
+					}
+					else 
+						taille_chaine = -1;
+					
+					i++;
+				}
+				free_history_entry (replace_history_entry (taille_hist - 1, nouvelle_entree, NULL));
+				free (nouvelle_entree);
+			}
+		}
+		else if(options_anrw[0] || options_anrw[1]
+								|| options_anrw[2]
+								|| options_anrw[3]){
+			int fd;
+			if (options_anrw[0]) {
+				printf ("%s\n", file_hist);
+				if (file_hist != NULL && (fd = open (file_hist, O_CREAT | O_APPEND, 0644)) != -1)
+					close (fd);
+				erreur = append_history (taille_hist, file_hist);
+			}
+			else if (options_anrw[1] || options_anrw[2])
+				erreur = read_history (file_hist);
+			else if (options_anrw[3]) 
+				erreur = history_truncate_file (file_hist, taille_hist);
+			
+			if (erreur)
+				printf("ERREUR %d\n", erreur);
+			
 		}
 	}
 	
@@ -363,16 +511,17 @@ int cmdInt_date (char **args){
 	char *date_donnee = NULL;
 	char *argument_iso8601 = NULL;
 	
-	int option_utc = 0
+	int option_utc = 0;
 	
 	int erreur = 0;
+	
 	while (args[id_arg] != NULL && !erreur) {
 		if (sont_egales (args[id_arg], "-d")|| sont_egales (args[id_arg], "--date") 
 											|| commence_par (args[id_arg], "--date=")){
 			nb_options_date++;
 			if ( args[id_arg + 1] != NULL	&& args[id_arg + 1][0] != '-' 
 											&& (sont_egales (args[id_arg], "-d") || sont_egales (args[id_arg], "--date")
-																				 || sont_egales (args[id_arg], "--date="))
+																				 || sont_egales (args[id_arg], "--date=")))
 				date_donnee = args[++id_arg];
 			else if (commence_par (args[id_arg], "--date=") && strlen (args[id_arg]) > strlen ("--date="))
 				date_donnee = args[id_arg] + strlen ("--date=");
@@ -409,7 +558,7 @@ int cmdInt_date (char **args){
 
 		}
 		else if (	commence_par(args[id_arg], "-I") 	|| sont_egales (args[id_arg], "--iso-8601") 
-														|| commence_par (args[id_arg], "--iso-8601=") {
+														|| commence_par (args[id_arg], "--iso-8601=")) {
 			nb_options_format++;
 			argument_iso8601 = "date";
 			
@@ -454,7 +603,7 @@ int cmdInt_date (char **args){
 		else if (commence_par (args[id_arg], "-r")  || sont_egales (args[id_arg], "--reference") 
 													|| commence_par (args[id_arg], "--reference=")){
 			nb_options_date++;
-			if ((sont_egales(args[id_arg], "-r") || sont_egales (args[id_arg], "--reference")){
+			if (sont_egales(args[id_arg], "-r") || sont_egales (args[id_arg], "--reference")){
 				if (args[id_arg + 1] != NULL)
 					fichier_date_modification = args[++id_arg];
 				else {
@@ -464,7 +613,7 @@ int cmdInt_date (char **args){
 			}
 			else if (strcmp(args[id_arg], "--reference=") == 0 && args[id_arg + 1] != NULL && !commence_par (args[id_arg + 1], "-"))
 					fichier_date_modification = args[++id_arg];
-			else if (commence_par( args[id_arg], "-r")
+			else if (commence_par( args[id_arg], "-r"))
 				fichier_date_modification = (args[id_arg] + strlen("-r"));
 			else if (commence_par(args[id_arg], "--reference=") && strlen ("--reference=") < strlen (args[id_arg]))
 				fichier_date_modification = (args[id_arg] + strlen("--reference="));
