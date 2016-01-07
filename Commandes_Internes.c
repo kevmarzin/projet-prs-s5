@@ -4,6 +4,7 @@
 #include <readline/history.h>
 
 int calcul_date (struct tm *date, int nbr, const char *mot){
+	// Identification du jour de la semaine donné, si ça n'en est pas un : -1
 	int jour_semaine = 	(sont_egales (mot, "sun") || sont_egales (mot, "sunday"))	? 0 :
 						(sont_egales (mot, "mon") || sont_egales (mot, "monday"))	? 1 :
 						(sont_egales (mot, "tue") || sont_egales (mot, "tuesday"))	? 2 :
@@ -12,8 +13,9 @@ int calcul_date (struct tm *date, int nbr, const char *mot){
 						(sont_egales (mot, "fri") || sont_egales (mot, "friday"))	? 5 :
 						(sont_egales (mot, "sat") || sont_egales (mot, "saturday"))	? 6 : -1;
 	
+	// Conversion de la structure de date en secondes depuis l'Epoch (1970)
 	time_t date_en_secondes = mktime(date);
-	printf ("%d / %s\n", nbr, mot);
+	
 	if(sont_egales(mot, "year")) {
 		date->tm_year += nbr;
 		mktime(date); // Maj du numéro du jour de la semaine
@@ -69,20 +71,31 @@ struct tm *analyser_date (char *date_donnee) {
 		}
 	}
 	else {
-		char **mots = split_str(date_donnee, " ");
+		char **mots = split_str(date_donnee, ' ');
 		
 		int nb_mots = nbArguments(mots);
 		char *mot_lower;
 		
-		if (nb_mots > 0){
-			 char input[]= "Diego De La Vega";
-			//mot_lower = malloc (strlen(mots[0]) + 1);
-			printf ("%s / %s\n", (mot_lower = strtolower(mots[0])), mots[0]);
-			/*if (sont_egales (strtolower(mot_lower, mots[0]), "next") && mots[1] != NULL)
-				erreur = !(calcul_date (date, 1, mots_lower[1]));
-			else if (nb_mots == 3 && sont_egales( mots_lower[nb_mots - 1], "ago") && estNombre (mots[0]))
-				erreur = !(calcul_date (date, atoi(mots[0]) * -1, mots_lower[1]));*/
+		if (nb_mots > 0) {
+			if (sont_egales ((mot_lower = strtolower(mots[0])), "next") && mots[1] != NULL) {
+				free (mot_lower);
+				erreur = !(calcul_date (date, 1, (mot_lower = strtolower(mots[1]))));
+				free (mot_lower);
+			}
+			else if (nb_mots == 3 && sont_egales( (mot_lower = strtolower(mots[nb_mots - 1])), "ago") && estNombre (mots[0])) {
+				free (mot_lower);
+				erreur = !(calcul_date (date, atoi(mots[0]) * -1, (mot_lower = strtolower(mots[1]))));
+				free (mot_lower);
+			}
 		}
+		
+		int i = 0;
+		while (mots[i] != NULL) {
+			free (mots[i]);
+			i++;
+		}
+		free (mots);
+		
 		/*else if (strptime(date_donnee, "%T", date);
 				 if (strptime(date_donnee, "%T", date);
 		else {
@@ -228,60 +241,54 @@ int cmdInt_history (char **args) {
 	
 	if (args[0] != NULL && args[0][0] == '-' && strlen(args[0]) > 1) {
 		int id_arg = 0;
-		int id_char = 0;
 		int verif_chaine_finie = 0;
 		int longueur_arg;
 		
 		while (!erreur && args[id_arg] != NULL) {
 			int id_char = 0;
+			
 			if (args[id_arg][id_char] == '-') {
 				longueur_arg = strlen(args[id_arg]);
-				id_char++;
-				while (!erreur && !verif_chaine_finie 	&& args[id_arg] != NULL 
-														&& args[id_arg][id_char] != '\0'
-														&& id_char < longueur_arg) {
-					if (args[id_arg][id_char] == 'c') {
-						clear = 1;
-					}
-					else if (args[id_arg][id_char] == 'd' && args[id_arg][id_char+1] != '\0') {
-						if (estNombre (args[id_arg] + (id_char+1))) {
-							elem_a_suppr = atoi (args[id_arg] + (id_char+1));
-							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
-								erreur = 1;
-								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
-							}
-							else
-								verif_chaine_finie = 1;
-						}
-						else {
-							fprintf (stderr, "history : %s : argument numérique nécessaire\n", args[id_arg] + (id_char+1));
-							erreur = 1;
-						}
-					}
-					else if (args[id_arg][id_char] == 'd') { 
+					
+				if (sont_egales (args[id_arg], "-c"))
+					clear = 1;
+				else if (commence_par (args[id_arg], "-d")){
+					if (sont_egales(args[id_arg], "-d")){
 						id_arg ++;
-						if (args[id_arg] == NULL) {
-							fprintf (stderr, "history : -d : l'option a besoin d'un argument\n");
-							erreur = 1;
-						}
-						else if (estNombre (args[id_arg])) {
+						if (args[id_arg] != NULL && estNombre (args[id_arg])) {
 							elem_a_suppr = atoi (args[id_arg]);
 							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
 								erreur = 1;
 								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
 							}
 						}
-						else {
+						else if (args[id_arg] != NULL) {
 							fprintf (stderr, "history : %s : position dans l'historique hors plage\n", args[id_arg]);
+							erreur = 1;
+						}
+						else {
+							fprintf (stderr, "history : -d : l'option a besoin d'un argument\n");
 							erreur = 1;
 						}
 					}
 					else {
-						erreur = 1;
-						fprintf (stderr, "history : -%c : option non valable\n", args[id_arg][id_char]);
-						fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
+						if (estNombre (args[id_arg] + 2)) {
+							elem_a_suppr = atoi (args[id_arg] + 2);
+							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
+								erreur = 1;
+								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
+							}
+						}
+						else {
+							fprintf (stderr, "history : %s : argument numérique nécessaire\n", args[id_arg] + (id_char+1));
+							erreur = 1;
+						}
 					}
-					id_char++;
+				}
+				else {
+					erreur = 1;
+					fprintf (stderr, "history : -%c : option non valable\n", args[id_arg][id_char]);
+					fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
 				}
 			}
 			
@@ -291,8 +298,10 @@ int cmdInt_history (char **args) {
 		}
 	}
 	else if ((nb_lignes_specifie = (args[0] != NULL && estNombre(args[0]))) || args[0] == NULL) {
-		if (nb_args > 1)
+		if (nb_args > 1) {
 			fprintf (stderr, "history : trop d'arguments");
+			erreur = 1;
+		}
 		else {
 			int id_hist = 0;
 			
@@ -310,6 +319,7 @@ int cmdInt_history (char **args) {
 	}
 	else {
 		fprintf (stderr, "history : %s : argument numérique nécessaire", args[0]);
+		erreur = 1;
 	}
 	
 	if (!erreur){
@@ -326,6 +336,12 @@ int cmdInt_history (char **args) {
 
 int cmdInt_date (char **args){
 	int id_arg = 0;
+	while (args [id_arg] != NULL) {
+		printf ("[%d] : %s\t", id_arg, args[id_arg]);
+		id_arg++;
+	}
+	printf("\n");
+	id_arg = 0;
 	
 	char *modifier_date = NULL;
 	
@@ -572,6 +588,7 @@ int cmdInt_date (char **args){
 				
 				if (fd != NULL){
 					while ( fgets (str_date, 60, fd) != NULL ) {
+						printf ("------ str_date = %s\n", str_date);
 						str_date[strlen(str_date)-1] = '\0';
 						args_nouvelle_cmd[1] = str_date;
 						if (cmdInt_date (args_nouvelle_cmd))

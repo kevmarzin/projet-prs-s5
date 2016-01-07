@@ -8,7 +8,7 @@ extern char * strtolower(const char * s);
 /*
  * Split la chaine src en fonction du separateur. Résultat renvoyé dans un tableau avec la dernière case égale à NULL
  */
-extern char **split_str (char* src, const char *separateur);
+extern char **split_str (char* src, const char separateur);
 
 /*
  * Renvoie 1 si la chaine src finie par la chaine de caractère sufixe, 0 sinon.

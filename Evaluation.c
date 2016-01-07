@@ -27,17 +27,17 @@ int id_pid_expr_BG(pid_t tab_pid[], pid_t pid){
 
 int evaluer_expr_simple (char **args){
 	int ret = 1;
-	if (strcmp (args[0], "echo") == 0)
+	if (sont_egales (args[0], "echo"))
 		ret = cmdInt_echo (args + 1);
-	else if (strcmp (args[0], "history") == 0)
+	else if (sont_egales (args[0], "history"))
 		ret = cmdInt_history (args + 1);
-	else if (strcmp (args[0], "date") == 0)
+	else if (sont_egales (args[0], "date"))
 		ret = cmdInt_date (args + 1);
-	else if (strcmp (args[0], "kill") == 0)
+	else if (sont_egales (args[0], "kill"))
 		ret = cmdInt_kill (args + 1);
-	else if (strcmp (args[0], "exit") == 0)
+	else if (sont_egales (args[0], "exit"))
 		ret = EXIT_PROG = cmdInt_exit ();
-	else if (strcmp (args[0], "hostname") == 0)
+	else if (sont_egales (args[0], "hostname"))
 		ret = cmdInt_hostname (args + 1);
 	else { //Commande externe exécutée
 		pid_t fpid;

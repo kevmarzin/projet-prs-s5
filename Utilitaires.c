@@ -12,27 +12,34 @@ char * strtolower(const char * s) {
 			res[i] = s[i];
 		i++;
 	}
-	printf("\"%s\" = \"%s\"\n", s, res);
     return res;
 }
 
-char **split_str (char* src, const char *separateur) {
-	char tmp [strlen (src)];
-	strcpy (tmp, src);
-	
+char **split_str (char* src, const char separateur) {
 	char **res = malloc(100 * sizeof(char *));
-	for(int i=0; i<100; i++){
-		res[i] = malloc(20 * sizeof(char));
-		memset (res[i], '\0', 20);
-	}
-	
+
 	int i = 0;
-	char* token = strtok(tmp, separateur);
-	while (token != NULL && i < 99) {
-		res[i] = token;
-		token = strtok(NULL, separateur);
+	char *debut = src;
+	char *fin = strchr(src, separateur);
+	
+	while (fin != NULL && i < 98) {
+		res[i] = malloc((fin - debut) + 1);
+		memcpy(res[i], debut,fin-debut);
+		res[0][fin - debut] = '\0';
+		
+		debut = fin + 1;
+		fin = strchr(debut, separateur);
+		
 		i++;
 	}
+	
+	if (strlen(debut) > 0) {
+		res[i] = malloc (strlen(debut) + 1);
+		memcpy(res[i], debut, strlen(debut));
+		res[i][strlen(debut)] = '\0';
+		i++;
+	}
+	
 	res[i] = NULL;
 	
 	return res;
