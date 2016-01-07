@@ -1,9 +1,10 @@
-#ifndef _EVALUATION_H
-#define _EVALUATION_H
+#ifndef _UTILITAIRES_H
+#define _UTILITAIRES_H
 
-#include "Commandes_Internes.h"
-
-extern char * strtolower(const char * s);
+/*
+ * Renvoie la chaîne une copie de src en minuscule
+ */
+extern char * strtolower(const char *src);
 
 /*
  * Split la chaine src en fonction du separateur. Résultat renvoyé dans un tableau avec la dernière case égale à NULL
@@ -38,7 +39,7 @@ extern int nbArguments (char **tab_args);
 /*
  * Si la chaine est uniquement composée de chiffre, 1 est renvoyé sinon 0
  */
-extern int estNombre (char *chaine);
+extern int estNombre (const char *chaine);
 
 /*
  * Remplace toutes les occurrences de str_a_remplacer par str_remplacement dans chaîne.

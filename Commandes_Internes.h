@@ -1,18 +1,5 @@
 #ifndef COMINTERN_H
 #define COMINTERN_H
-#include "Shell.h"
-
-#include <ctype.h>
-#include <time.h>
-#include <sys/types.h> 
-#include <sys/stat.h> 
-#include <unistd.h>
-#include <signal.h>
-#include <limits.h>
-#include <fcntl.h>
-#include <sys/socket.h>
-#include <netdb.h>
-
 
 /*
  * Commande echo.

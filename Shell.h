@@ -8,13 +8,13 @@
 
 #define NB_ARGS 50
 #define TAILLE_ID 500
-#define NB_SIGNAUX 32
 
-const char* SIGNAUX[NB_SIGNAUX];
+#define NB_SIGNAUX 32
+#define NB_PROCS_BG_MAX 100
 	
 int EXIT_PROG;
 
-#define NB_PROCS_BG_MAX 100
+const char* LISTE_SIGNAUX[NB_SIGNAUX];
 
 pid_t PIDS_BG[NB_PROCS_BG_MAX];
 //char *NOM_PROCS_BG[NB_PROCS_BG_MAX];

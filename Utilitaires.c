@@ -1,15 +1,20 @@
 #include "Utilitaires.h"
 
-char * strtolower(const char * s) {
-	char *res = malloc (strlen (s) + 1);
-	memset (res, '\0', strlen (s) + 1);
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+char * strtolower (const char * src) {
+	char *res = malloc (strlen (src) + 1);
+	memset (res, '\0', strlen (src) + 1);
 	
 	size_t i = 0;
-	while (s[i] != '\0'){
-		if (isalpha(s[i]))
-			res[i] = tolower(s[i]);
+	while (src[i] != '\0'){
+		if (isalpha(src[i]))
+			res[i] = tolower(src[i]);
 		else 
-			res[i] = s[i];
+			res[i] = src[i];
 		i++;
 	}
     return res;
@@ -76,7 +81,7 @@ int nbArguments (char **tab_args) {
 	return id_arg;
 }
 
-int estNombre (char *chaine) {
+int estNombre (const char *chaine) {
 	int i = 0;
 	int chaineEstNombre = 1;
 	

@@ -9,38 +9,13 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-const char* SIGNAUX[NB_SIGNAUX] = {"Aucun signal",
-	"SIGHUP",
-	"SIGINT",
-	"SIGQUIT",
-	"SIGILL",
-	"SIGTRAP",
-	"SIGABRT",
-	"SIGBUS",
-	"SIGFPE",
-	"SIGKILL",
-	"SIGUSR1",
-	"SIGSEGV",
-	"SIGUSR2",
-	"SIGPIPE",
-	"SIGALRM",
-	"SIGTERM",
-	"SIGSTKFLT",
-	"SIGCHLD",
-	"SIGCONT",
-	"SIGSTOP",
-	"SIGTSTP",
-	"SIGTTIN",
-	"SIGTTOU",
-	"SIGURG",
-	"SIGXCPU",
-	"SIGXFSZ",
-	"SIGVTALRM",
-	"SIGPROF",
-	"SIGWINCH",
-	"SIGIO",
-	"SIGPWR",
-	"SIGSYS"};
+const char* LISTE_SIGNAUX[NB_SIGNAUX] = {	
+	"Aucun signal", "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT",
+	"SIGBUS", "SIGFPE", "SIGKILL", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGPIPE",
+	"SIGALRM", "SIGTERM", "SIGSTKFLT", "SIGCHLD", "SIGCONT", "SIGSTOP", "SIGTSTP",
+	"SIGTTIN", "SIGTTOU", "SIGURG", "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF",
+	"SIGWINCH", "SIGIO", "SIGPWR", "SIGSYS"
+};
 
 extern int yyparse_string (char *);
 

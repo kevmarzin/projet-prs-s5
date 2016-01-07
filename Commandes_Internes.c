@@ -1,7 +1,21 @@
 #include "Commandes_Internes.h"
 #include "Utilitaires.h"
+#include "Shell.h"
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include <string.h>
 #include <readline/history.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <limits.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+int sethostname(const char *name, size_t len);
 
 int calcul_date (struct tm *date, int nbr, const char *mot){
 	// Identification du jour de la semaine donné, si ça n'en est pas un : -1
@@ -88,6 +102,12 @@ struct tm *analyser_date (char *date_donnee) {
 				free (mot_lower);
 			}
 		}
+		else if (mots[0][3] == ':')
+			strptime(date_donnee, "%T %D", date);
+		else if (mots[1] != NULL && mots[1][3] == ':')
+			strptime(date_donnee, "%D %T", date);
+		else 
+			strptime(date_donnee, "%a, %d %b %Y %T", date);
 		
 		int i = 0;
 		while (mots[i] != NULL) {
@@ -95,12 +115,6 @@ struct tm *analyser_date (char *date_donnee) {
 			i++;
 		}
 		free (mots);
-		
-		/*else if (strptime(date_donnee, "%T", date);
-				 if (strptime(date_donnee, "%T", date);
-		else {
-			strptime(date_donnee, "%a, %d %b %Y %T", date);
-		}*/
 	}
 	
 	return !erreur ? date : NULL;
@@ -724,8 +738,8 @@ int cmdInt_kill (char **args)
 						trouve = 0;
 						id_liste_signaux = 0;
 						while (id_liste_signaux < 32 && !trouve) {
-							if (sont_egales(SIGNAUX[id_liste_signaux], args[id_arg]) ||
-							sont_egales(SIGNAUX[id_liste_signaux] + 3, args[id_arg])) {
+							if (sont_egales(LISTE_SIGNAUX[id_liste_signaux], args[id_arg]) ||
+							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg])) {
 								trouve = 1;
 								id_liste_proc = ++id_arg;
 								while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
@@ -761,20 +775,20 @@ int cmdInt_kill (char **args)
 				if (args[id_arg_liste_signaux] == NULL) {
 					int it;
 					for (it = 1; it < 32; it++)
-						printf("%d) %s\n", it, SIGNAUX[it]);
+						printf("%d) %s\n", it, LISTE_SIGNAUX[it]);
 				}
 				while (args[id_arg_liste_signaux] != NULL) {
 					if (estNombre(args[id_arg_liste_signaux]) && (0 < atoi(args[id_arg_liste_signaux]) 
 															&& atoi(args[id_arg_liste_signaux]) < 32))
-						printf("%s\n", SIGNAUX[atoi(args[id_arg_liste_signaux])] + 3);
+						printf("%s\n", LISTE_SIGNAUX[atoi(args[id_arg_liste_signaux])] + 3);
 					else if (!estNombre(args[id_arg_liste_signaux])) {
 						trouve = 0;
 						id_liste_signaux = 0;
 						while (id_liste_signaux < 32 && !trouve) {
-							if (sont_egales(SIGNAUX[id_liste_signaux], args[id_arg_liste_signaux]) ||
-							sont_egales(SIGNAUX[id_liste_signaux] + 3, args[id_arg_liste_signaux])) {
+							if (sont_egales(LISTE_SIGNAUX[id_liste_signaux], args[id_arg_liste_signaux]) ||
+							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg_liste_signaux])) {
 								trouve = 1;
-								printf("%s\n", SIGNAUX[id_liste_signaux] + 3);
+								printf("%s\n", LISTE_SIGNAUX[id_liste_signaux] + 3);
 							}
 							else
 								id_liste_signaux++;
@@ -815,8 +829,8 @@ int cmdInt_kill (char **args)
 					trouve = 0;
 					id_liste_signaux = 0;
 					while (id_liste_signaux < 32 && !trouve) {
-						if (sont_egales(SIGNAUX[id_liste_signaux], args[id_arg] + 1) ||
-							sont_egales(SIGNAUX[id_liste_signaux] + 3, args[id_arg] + 1)) {
+						if (sont_egales(LISTE_SIGNAUX[id_liste_signaux], args[id_arg] + 1) ||
+							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg] + 1)) {
 							trouve = 1;
 							id_liste_proc = ++id_arg;
 							while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {

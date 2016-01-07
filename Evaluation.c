@@ -1,13 +1,12 @@
-#include "Shell.h"
 #include "Evaluation.h"
 #include "Commandes_Internes.h"
+#include "Utilitaires.h"
 
-#include <sys/wait.h>
-#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
-
+#include <stdlib.h>
 
 int id_vide_expr_BG(pid_t tab_pid[]){
 	int i = 0;
