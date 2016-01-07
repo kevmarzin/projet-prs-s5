@@ -10,6 +10,9 @@
 #include <signal.h>
 #include <limits.h>
 #include <fcntl.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 
 /*
  * Commande echo.

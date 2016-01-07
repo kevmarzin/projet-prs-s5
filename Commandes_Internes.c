@@ -851,6 +851,7 @@ int cmdInt_hostname (char **args)
 	int erreur = 0;
 	int id_arg = 0;
 	char hostname[HOST_NAME_MAX];
+	char *domainname;
 	
 	while (args[id_arg] != NULL && !erreur) 
 	{
@@ -858,7 +859,51 @@ int cmdInt_hostname (char **args)
 			
 		}
 		else if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
-			
+			//Afficher la version et ne pas prendre en compte n'importe quel autre arg
+		}
+		else if (sont_egales(args[id_arg], "-h") || sont_egales(args[id_arg], "--help")) {
+			printf("Usage : \n");
+			printf("hostname [-b] {hostname|-F fichier}     -      Changer le nom d'hôte (depuis un fichier)\n");
+			printf("hostname [-a|-A|-d|-f|-i|-I|-s|-y]      -      Afficher le nom sous un format\n");
+			printf("hostname -V|--version|-h|--help         -      Afficher des infos (aide ou version)\n");
+			printf("hostname                                -      Afficher le nom d'hôte\n");
+		}
+		else if (sont_egales(args[id_arg], "-d") || sont_egales(args[id_arg], "--domain")) {
+			struct hostent *hp;
+
+			gethostname(hostname, sizeof(hostname));
+			hp = gethostbyname(hostname);
+			domainname = strchr(hp->h_name, '.');
+			if ( domainname != NULL ) {
+				printf("%s\n", ++domainname);
+			}
+			else {
+				fprintf(stderr, "Nom de domaine introuvable.\n");
+				erreur = 1;
+			}
+		}
+		else if (sont_egales(args[id_arg], "-f") || sont_egales(args[id_arg], "--fqdn")
+												 || sont_egales(args[id_arg], "--long")) {
+			struct addrinfo hints, *info, *p;
+			int res;
+		
+			gethostname(hostname, sizeof(hostname));
+
+			memset(&hints, 0, sizeof hints);
+			hints.ai_family = AF_UNSPEC;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_flags = AI_CANONNAME;
+
+			if ((getaddrinfo(hostname, "http", &hints, &info)) != 0) {
+				fprintf(stderr, "Erreur dans la récupération");
+				erreur = 1;
+			}
+
+			for(p = info; p != NULL; p = p->ai_next) {
+				printf("%s\n", p->ai_canonname);
+			}
+
+			freeaddrinfo(info);
 		}
 		else if (sont_egales(args[id_arg], "-F") || sont_egales(args[id_arg], "--file")) {
 			if (args[++id_arg] != NULL) {
