@@ -60,6 +60,7 @@ int evaluer_expr (Expression *e){
 	int tube[2];
 	int fd_sauvegarde_stdin;
 	int fd_sauvegarde_stdout;
+	int fd_sauvegarde_stderr;
 	
 	int fd;
 	
@@ -203,32 +204,50 @@ int evaluer_expr (Expression *e){
 			}
 			break;
 		case REDIRECTION_O: // Redirection de la sortie (>)
+		case REDIRECTION_A: // Redirection de la sortie en mode APPEND (>>)
+		case REDIRECTION_E: // Redirection de la sortie erreur (2>)
 			// Ouverture du fichier en écriture avec les droits rw-r--r--
-			fd = open(e->arguments[0], O_WRONLY | O_CREAT, 0644);
+			if (e->type == REDIRECTION_A)
+				fd = open(e->arguments[0], O_WRONLY | O_CREAT | O_APPEND, 0644);
+			else
+				fd = open(e->arguments[0], O_WRONLY | O_CREAT, 0644);
 			
 			if (fd == -1){ // Problème lors de l'ouverture
 				ret = 0;
 				fprintf (stderr, "%s : Aucun fichier ou dossier de ce type\n", e->arguments[0]);
 			}
 			else { // Ouverture réussie
-				//Sauvegarde de la sortie standard
-				fd_sauvegarde_stdout = dup(STDOUT_FILENO);
-				
-				// La sortie standard est remplasé par le fichier
-				dup2 (fd, STDOUT_FILENO);
-				close (fd);
-				
-				// Exécution de la commande
-				ret = evaluer_expr(e->gauche);
-				
-				// Sortie standard restorée
-				dup2 (fd_sauvegarde_stdout, STDOUT_FILENO);
-				close (fd_sauvegarde_stdout);
+				if (e->type == REDIRECTION_E) {
+					//Sauvegarde de la sortie erreur
+					fd_sauvegarde_stderr = dup(STDERR_FILENO);
+					
+					// La sortie erreur est remplacée par le fichier
+					dup2 (fd, STDERR_FILENO);
+					close (fd);
+					
+					// Exécution de la commande
+					ret = evaluer_expr(e->gauche);
+					
+					// Sortie erreur restorée
+					dup2 (fd_sauvegarde_stderr, STDERR_FILENO);
+					close (fd_sauvegarde_stderr);
+				}
+				else {
+					//Sauvegarde de la sortie standard
+					fd_sauvegarde_stdout = dup(STDOUT_FILENO);
+					
+					// La sortie standard est remplasé par le fichier
+					dup2 (fd, STDOUT_FILENO);
+					close (fd);
+					
+					// Exécution de la commande
+					ret = evaluer_expr(e->gauche);
+					
+					// Sortie standard restorée
+					dup2 (fd_sauvegarde_stdout, STDOUT_FILENO);
+					close (fd_sauvegarde_stdout);
+				}
 			}
-			break;
-		case REDIRECTION_A: // Redirection de la sortie en mode APPEND (>>)
-			break;
-		case REDIRECTION_E: // Redirection de la sortie erreur (2>)
 			break;
 		case REDIRECTION_EO: // Redirection des sorties erreur et standard (&>)
 			break;		

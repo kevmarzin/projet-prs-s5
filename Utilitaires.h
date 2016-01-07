@@ -48,4 +48,9 @@ extern int estNombre (const char *chaine);
  */
 extern char *remplacer (char *chaine, const char *str_a_remplacer, const char *str_remplacement);
 
+/*
+ * Détermine si l'utilisateur est root
+ */
+extern int estRoot (char *user);
+
 #endif
