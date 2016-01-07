@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+// Pour enlever le warning incompréhensible "implicit declaration of function sethostname..."
 int sethostname(const char *name, size_t len);
 
 int calcul_date (struct tm *date, int nbr, const char *mot){
@@ -350,53 +351,40 @@ int cmdInt_history (char **args) {
 
 int cmdInt_date (char **args){
 	int id_arg = 0;
-	while (args [id_arg] != NULL) {
-		printf ("[%d] : %s\t", id_arg, args[id_arg]);
-		id_arg++;
-	}
-	printf("\n");
-	id_arg = 0;
 	
 	char *modifier_date = NULL;
 	
 	char *format = NULL;
-	int nb_format = 0;
+	int nb_options_format = 0;
 	
-	int nb_date = 0;
+	int nb_options_date = 0;
 	char *fichier_date_modification = NULL;
 	char *fichier_dates = NULL;
 	char *date_donnee = NULL;
 	char *argument_iso8601 = NULL;
-	/*
-	 * rfc-3339
-	 * date: argument «  » ambigu pour « --rfc-3339 »
-		Les arguments valables sont :
-		- « date »
-		- « seconds »
-		- « ns »
-*/
-	/*
-	 * rfc-3339 prioritaire sur -d
-	 */
+	
+	int option_utc = 0
+	
 	int erreur = 0;
 	while (args[id_arg] != NULL && !erreur) {
 		if (sont_egales (args[id_arg], "-d")|| sont_egales (args[id_arg], "--date") 
-											|| (commence_par (args[id_arg], "--date") 
-												&& args[id_arg][strlen("--date")] == '=')){
-			nb_date++;
-			if (sont_egales (args[id_arg], "-d")|| sont_egales (args[id_arg], "--date") 
-												|| (commence_par (args[id_arg], "--date") 	&& (strlen (args[id_arg]) == strlen ("--date="))
-																							&& args[id_arg + 1] != NULL && args[id_arg + 1][0] != '-'))
+											|| commence_par (args[id_arg], "--date=")){
+			nb_options_date++;
+			if ( args[id_arg + 1] != NULL	&& args[id_arg + 1][0] != '-' 
+											&& (sont_egales (args[id_arg], "-d") || sont_egales (args[id_arg], "--date")
+																				 || sont_egales (args[id_arg], "--date="))
 				date_donnee = args[++id_arg];
-			else if (commence_par (args[id_arg], "--date") && (strlen (args[id_arg]) > strlen ("--date=")))
+			else if (commence_par (args[id_arg], "--date=") && strlen (args[id_arg]) > strlen ("--date="))
 				date_donnee = args[id_arg] + strlen ("--date=");
+			else if (commence_par (args[id_arg], "-d") && strlen (args[id_arg]) > strlen ("-d"))
+				date_donnee = args[id_arg] + strlen ("-d");
 			else
 				date_donnee = "";
 			
 		}
 		else if (commence_par (args[id_arg], "-f")	|| sont_egales (args[id_arg], "--file") 
-													|| (commence_par (args[id_arg], "--file="))) {
-			nb_date++;
+													|| commence_par (args[id_arg], "--file=")) {
+			nb_options_date++;
 			if (sont_egales (args[id_arg], "-f") || sont_egales (args[id_arg], "--file")) {
 				if (args[id_arg + 1] != NULL)
 					fichier_dates = args[++id_arg];
@@ -420,12 +408,9 @@ int cmdInt_date (char **args){
 			}
 
 		}
-		else if (	(strlen(args[id_arg]) >= 2 	&& args[id_arg][0] == '-' 
-												&& args[id_arg][1] == 'I') 
-					|| ((strstr(args[id_arg], "--iso-8601") != NULL && (strlen(strstr(args[id_arg], "--iso-8601")) == strlen(args[id_arg])))
-						&& ((strlen(args[id_arg]) > strlen("--iso-8601") && args[id_arg][strlen("--iso-8601")] == '=') 
-							|| strlen(args[id_arg]) == strlen("--iso-8601")))) {
-			nb_format++;
+		else if (	commence_par(args[id_arg], "-I") 	|| sont_egales (args[id_arg], "--iso-8601") 
+														|| commence_par (args[id_arg], "--iso-8601=") {
+			nb_options_format++;
 			argument_iso8601 = "date";
 			
 			int longueur_nom_arg;
@@ -466,19 +451,22 @@ int cmdInt_date (char **args){
 				}
 			}
 		}
-		else if (strcmp(args[id_arg], "-r") == 0 || strstr(args[id_arg], "--reference") != NULL) {
-			nb_date++;
-			if ((strcmp(args[id_arg], "-r") == 0 && args[id_arg + 1] != NULL) || 
-						(strcmp (args[id_arg], "--reference") == 0 && args[id_arg + 1] != NULL))
-				fichier_date_modification = args[++id_arg];
-			else if ((strcmp(args[id_arg], "-r") == 0 && args[id_arg + 1] != NULL) || 
-						(strcmp (args[id_arg], "--reference") == 0 && args[id_arg + 1] == NULL)){
-				erreur = 1;
-				fprintf (stderr, "date : l'option « %s » requiert un argument\n", args[id_arg]);
-			}
-			else if (strcmp(args[id_arg], "--reference=") == 0 && args[id_arg + 1] != NULL)
+		else if (commence_par (args[id_arg], "-r")  || sont_egales (args[id_arg], "--reference") 
+													|| commence_par (args[id_arg], "--reference=")){
+			nb_options_date++;
+			if ((sont_egales(args[id_arg], "-r") || sont_egales (args[id_arg], "--reference")){
+				if (args[id_arg + 1] != NULL)
 					fichier_date_modification = args[++id_arg];
-			else if (strstr(args[id_arg], "--reference=") == 0 && strlen ("--reference=") < strlen (args[id_arg]))
+				else {
+					erreur = 1;
+					fprintf (stderr, "date : l'option « %s » requiert un argument\n", args[id_arg]);
+				}
+			}
+			else if (strcmp(args[id_arg], "--reference=") == 0 && args[id_arg + 1] != NULL && !commence_par (args[id_arg + 1], "-"))
+					fichier_date_modification = args[++id_arg];
+			else if (commence_par( args[id_arg], "-r")
+				fichier_date_modification = (args[id_arg] + strlen("-r"));
+			else if (commence_par(args[id_arg], "--reference=") && strlen ("--reference=") < strlen (args[id_arg]))
 				fichier_date_modification = (args[id_arg] + strlen("--reference="));
 			else 
 				fichier_date_modification = "";
@@ -492,35 +480,41 @@ int cmdInt_date (char **args){
 				fprintf (stderr, "date : %s : Aucun fichier ou dossier de ce type\n", fichier_date_modification);
 			}
 		}
-		else if (strcmp(args[id_arg], "-R") == 0 || strcmp(args[id_arg], "--rfc-2822") == 0 || strstr(args[id_arg], "--rfc-2822=") != NULL) {
-			if (strstr(args[id_arg], "--rfc-2822=") != NULL) {
+		else if (sont_egales (args[id_arg], "-R")   || sont_egales (args[id_arg], "--rfc-2822")
+													|| commence_par (args[id_arg], "--rfc-2822=")) {
+			if (commence_par (args[id_arg], "--rfc-2822=")) {
 				fprintf (stderr, "date : l'option « --rfc-2822 » ne permet pas d'argument\n");
 				erreur = 1;
 			}
 			else {
-				nb_format++;
+				nb_options_format++;
 				format = "%a, %d %b %Y %X %z";
 			}
 		}
-		else if (strstr(args[id_arg], "--rfc-3339") != NULL || strstr(args[id_arg], "--rfc-3339=") != NULL ) {
-			if (strstr(args[id_arg], "--rfc-3339=") == NULL) {
+		else if (commence_par (args[id_arg], "--rfc-3339=")  || sont_egales (args[id_arg], "--rfc-3339")) {
+			if (sont_egales (args[id_arg], "--rfc-3339") && args[id_arg + 1] == NULL) {
 				erreur = 1;
 				fprintf (stderr, "date : l'option « %s » requiert un argument\n", args[id_arg]);
 			}
 			else {
-				char* format_rfc = (args[id_arg] + strlen("--rfc-3339="));
-				if (format_rfc[0] == '\0' && args[id_arg + 1][0] != '-')
-					format_rfc = args[++id_arg];
+				char* format_rfc;
+				if (sont_egales (args[id_arg], "--rfc-3339"))
+					format_rfc = (args[id_arg] + strlen("--rfc-3339"));
+				else
+					format_rfc = (args[id_arg] + strlen("--rfc-3339="));
 					
-				if (format_rfc[0] != '\0' &&   (strcmp (format_rfc, "date") == 0
-											||	strcmp (format_rfc, "seconds") == 0
-											||	strcmp (format_rfc, "ns") == 0)){
-					nb_format++;
-					if (strcmp (format_rfc, "date") == 0)
+				if (format_rfc[0] == '\0' && args[id_arg + 1] != NULL && args[id_arg + 1][0] != '-')
+					format_rfc = args[++id_arg];
+				
+				if (format_rfc[0] != '\0' &&   (sont_egales (format_rfc, "date")
+											||	sont_egales (format_rfc, "seconds")
+											||	sont_egales (format_rfc, "ns"))){
+					nb_options_format++;
+					if (sont_egales (format_rfc, "date"))
 						format = "%F";
-					else if (strcmp (format_rfc, "seconds") == 0)
+					else if (sont_egales (format_rfc, "seconds"))
 						format = "%F %X%z";
-					else if (strcmp (format_rfc, "ns") == 0)
+					else if (sont_egales (format_rfc, "ns"))
 						format = "%F %X.%N%z";
 				}
 				else {
@@ -531,11 +525,19 @@ int cmdInt_date (char **args){
 		}
 		else if (strcmp(args[id_arg], "-s") == 0 || strcmp(args[id_arg], "--set=") == 0)
 			;
-		else if (strcmp(args[id_arg], "-u") == 0 || strcmp(args[id_arg], "--utc=") == 0 || strcmp(args[id_arg], "--universel=") == 0)
-			;
+		else if (sont_egales (args[id_arg], "-u") || sont_egales (args[id_arg], "--utc") 
+												  || sont_egales (args[id_arg], "--universal"))
+			option_utc = 1;
+		else if (commence_par (args[id_arg], "--utc=") || commence_par (args[id_arg], "--universal=")) {
+			erreur = 1;
+			if (commence_par (args[id_arg], "--utc="))
+				printf ("date : l'option « --utc » ne permet pas d'argument");
+			else
+				printf ("date : l'option « --universal » ne permet pas d'argument");
+		}
 		else if (args[id_arg][0] == '+') {
 			format = args[id_arg] + 1;
-			nb_format++;
+			nb_options_format++;
 		}
 		else {
 			erreur = 1;
@@ -545,13 +547,13 @@ int cmdInt_date (char **args){
 		id_arg++;
 	}
 	
-	if (!erreur && (nb_format == 0 || nb_format == 1) && (nb_date == 0 || nb_date == 1)) {
+	if (!erreur && (nb_options_format == 0 || nb_options_format == 1) && (nb_options_date == 0 || nb_options_date == 1)) {
 		char buffer[256];
 		time_t timestamp;
 		struct tm *date;
 		struct timespec timestamp_avec_ns;
 		
-		if (nb_format == 0)
+		if (nb_options_format == 0)
 			format = "%A %d %B %Y, %X (UTC%z)";
 		else if (argument_iso8601 != NULL) {
 			if (strcmp(argument_iso8601, "date") == 0)
@@ -565,12 +567,12 @@ int cmdInt_date (char **args){
 			else if (strcmp(argument_iso8601, "ns") == 0)
 				format = "%F %R,%N%z";
 		}
-		if (nb_date == 0) {
+		if (nb_options_date == 0) {
 			clock_gettime (CLOCK_REALTIME, &timestamp_avec_ns);
 			timestamp = timestamp_avec_ns.tv_sec;
 			date = localtime(&timestamp);
 		}
-		else if (nb_date == 1) {
+		else if (nb_options_date == 1) {
 			struct stat buf;
 			if (fichier_date_modification != NULL && stat (fichier_date_modification, &buf) == 0) {
 				timestamp = buf.st_mtime;
@@ -602,7 +604,6 @@ int cmdInt_date (char **args){
 				
 				if (fd != NULL){
 					while ( fgets (str_date, 60, fd) != NULL ) {
-						printf ("------ str_date = %s\n", str_date);
 						str_date[strlen(str_date)-1] = '\0';
 						args_nouvelle_cmd[1] = str_date;
 						if (cmdInt_date (args_nouvelle_cmd))
@@ -648,13 +649,18 @@ int cmdInt_date (char **args){
 				format = remplacer (format, "%:::z", interpretation_triple_z);
 			}
 			if (strstr (format, "%N") != NULL) {
-				if (nb_date == 0) {
+				if (nb_options_date == 0) {
 					char nanoSec[10 + 1];
 					sprintf(nanoSec, "%lu", timestamp_avec_ns.tv_nsec);
 					format = remplacer (format, "%N", nanoSec);
 				}
 				else
 					format = remplacer (format, "%N", ".000000000");
+			}
+			
+			if (option_utc) { // Conversion de la date en UTC+0000
+				timestamp = mktime(date);
+				date = gmtime(&timestamp);
 			}
 			
 			strftime(buffer, sizeof(buffer), format, date);
@@ -665,11 +671,11 @@ int cmdInt_date (char **args){
 			erreur = 1;
 		}
 	}
-	else if (!erreur && nb_format > 1) {
+	else if (!erreur && nb_options_format > 1) {
 		fprintf (stderr, "date : plusieurs formats de fichiers de sortie indiqués\n");
 		erreur = 1;
 	}
-	else if (!erreur && nb_date > 1) {
+	else if (!erreur && nb_options_date > 1) {
 		fprintf (stderr, "date : les options pour indiquer les dates d'impression sont mutuellement exclusives\n");
 		erreur = 1;
 	}
