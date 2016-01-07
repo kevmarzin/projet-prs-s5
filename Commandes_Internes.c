@@ -1018,17 +1018,17 @@ int cmdInt_kill (char **args)
 int cmdInt_hostname (char **args) 
 {
 	int erreur = 0;
+	int stop = 0;
 	int id_arg = 0;
 	char hostname[HOST_NAME_MAX];
 	char *domainname;
+	char nisdomainname[256];
 	
-	while (args[id_arg] != NULL && !erreur) 
+	while (args[id_arg] != NULL && !stop) 
 	{
-		if (sont_egales(args[id_arg], "-a") || sont_egales(args[id_arg], "--alias")) {
-			
-		}
-		else if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
+		if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
 			//Afficher la version et ne pas prendre en compte n'importe quel autre arg
+			stop = 1;
 		}
 		else if (sont_egales(args[id_arg], "-h") || sont_egales(args[id_arg], "--help")) {
 			printf("Usage : \n");
@@ -1036,51 +1036,124 @@ int cmdInt_hostname (char **args)
 			printf("hostname [-a|-A|-d|-f|-i|-I|-s|-y]      -      Afficher le nom sous un format\n");
 			printf("hostname -V|--version|-h|--help         -      Afficher des infos (aide ou version)\n");
 			printf("hostname                                -      Afficher le nom d'hôte\n");
+			stop = 1;
 		}
-		else if (sont_egales(args[id_arg], "-d") || sont_egales(args[id_arg], "--domain")) {
-			struct hostent *hp;
-
-			gethostname(hostname, sizeof(hostname));
-			hp = gethostbyname(hostname);
-			domainname = strchr(hp->h_name, '.');
-			if ( domainname != NULL ) {
-				printf("%s\n", ++domainname);
+		else 
+			id_arg++;
+	}
+	
+	id_arg = 0;
+	while (args[id_arg] != NULL && !sont_egales(args[id_arg], "-V")
+								&& !sont_egales(args[id_arg], "-h")
+								&& !sont_egales(args[id_arg], "--version")
+								&& !sont_egales(args[id_arg], "--help") 
+								&& !sont_egales(args[id_arg], "-b") 
+								&& !sont_egales(args[id_arg], "--boot")
+								&& !sont_egales(args[id_arg], "--file") 
+								&& !sont_egales(args[id_arg], "-F")
+								&& args[id_arg][0] == '-' && !erreur)
+	{
+		if (strlen(args[id_arg]) == 1)
+			erreur = 1;
+		if (args[id_arg + 1] == NULL) {
+			if (sont_egales(args[id_arg], "-a") || sont_egales(args[id_arg], "--alias")) {
+				// Je ne sais pas à quoi ça correspond
 			}
-			else {
-				fprintf(stderr, "Nom de domaine introuvable.\n");
-				erreur = 1;
+			else if (sont_egales(args[id_arg], "-A") || sont_egales(args[id_arg], "--all-fqdns")) {
+				// Pas compris
+			}
+			else if (sont_egales(args[id_arg], "-d") || sont_egales(args[id_arg], "--domain")) {
+				struct hostent *hp;
+
+				gethostname(hostname, sizeof(hostname));
+				hp = gethostbyname(hostname);
+				domainname = strchr(hp->h_name, '.');
+				if ( domainname != NULL ) {
+					printf("%s\n", ++domainname);
+				}
+				else {
+					fprintf(stderr, "Nom de domaine introuvable.\n");
+					erreur = 1;
+				}
+			}
+			else if (sont_egales(args[id_arg], "-f") || sont_egales(args[id_arg], "--fqdn")
+													|| sont_egales(args[id_arg], "--long")) {
+				struct addrinfo hints, *info, *p;
+				int res;
+			
+				gethostname(hostname, sizeof(hostname));
+
+				memset(&hints, 0, sizeof hints);
+				hints.ai_family = AF_UNSPEC;
+				hints.ai_socktype = SOCK_STREAM;
+				hints.ai_flags = AI_CANONNAME;
+
+				if ((getaddrinfo(hostname, "http", &hints, &info)) != 0) {
+					fprintf(stderr, "Erreur dans la récupération");
+					erreur = 1;
+				}
+
+				for(p = info; p != NULL; p = p->ai_next) {
+					printf("%s\n", p->ai_canonname);
+				}
+
+				freeaddrinfo(info);
+			}
+			else if (sont_egales(args[id_arg], "-i") || sont_egales(args[id_arg], "--ip-address")) {
+				
+			}
+			else if (sont_egales(args[id_arg], "-I") || sont_egales(args[id_arg], "--all-ip-addresses")) {
+				
+			}
+			else if (sont_egales(args[id_arg], "-s") || sont_egales(args[id_arg], "--short")) {
+				// S'arrête au premier '.'
+				if (gethostname(hostname, sizeof(hostname)) == 0) {
+					int i = 0;
+					while (hostname[i] != '.') {
+						printf("%c", hostname[i]);
+						i++;
+					}
+					printf("\n");
+				}
+			}
+			else if (sont_egales(args[id_arg], "-y") || sont_egales(args[id_arg], "--yp") || sont_egales(args[id_arg], "--nis")) {
+				if (getdomainname(nisdomainname, sizeof(nisdomainname)) == 0)
+					printf("%s\n", nisdomainname);
 			}
 		}
-		else if (sont_egales(args[id_arg], "-f") || sont_egales(args[id_arg], "--fqdn")
-												 || sont_egales(args[id_arg], "--long")) {
-			struct addrinfo hints, *info, *p;
-			int res;
-		
-			gethostname(hostname, sizeof(hostname));
-
-			memset(&hints, 0, sizeof hints);
-			hints.ai_family = AF_UNSPEC;
-			hints.ai_socktype = SOCK_STREAM;
-			hints.ai_flags = AI_CANONNAME;
-
-			if ((getaddrinfo(hostname, "http", &hints, &info)) != 0) {
-				fprintf(stderr, "Erreur dans la récupération");
-				erreur = 1;
-			}
-
-			for(p = info; p != NULL; p = p->ai_next) {
-				printf("%s\n", p->ai_canonname);
-			}
-
-			freeaddrinfo(info);
-		}
-		else if (sont_egales(args[id_arg], "-F") || sont_egales(args[id_arg], "--file")) {
+		id_arg++;
+	}
+	
+	id_arg = 0;
+	if (args[id_arg] != NULL && (sont_egales(args[id_arg], "-b")
+									|| sont_egales(args[id_arg], "--boot")
+									|| sont_egales(args[id_arg], "-F")
+									|| sont_egales(args[id_arg], "--file")
+								    || args[id_arg][0] != '-')) 
+	{
+		if (sont_egales(args[id_arg], "-F") || sont_egales(args[id_arg], "--file")) {
 			if (args[++id_arg] != NULL) {
 				int fd = open(args[id_arg], O_RDONLY);
 				if (fd != -1) {
-					char c;
-					while (read(fd, &c, 1))
-						write(STDOUT_FILENO, &c, 1);
+					if (estRoot(NULL)) {
+						char c;
+						while (read(fd, &c, 1)) {
+							write(STDOUT_FILENO, &c, 1);
+						}/*
+						if (strlen(chaine) > 0 && strlen(chaine) < HOST_NAME_MAX) {
+							sethostname(chaine, sizeof(chaine));
+							printf("%s\n", chaine);
+						}
+						else {
+							fprintf(stderr, "Argument vide ou trop long\n");
+							erreur = 1;
+						}*/
+					}
+					else {
+						fprintf(stderr, "Il faut être super utilisateur pour modifier le nom d'hôte\n");
+						erreur = 1;
+					}
+					
 				}
 				else {
 					fprintf(stderr, "Fichier inexistant\n");
@@ -1091,12 +1164,12 @@ int cmdInt_hostname (char **args)
 				fprintf(stderr, "Entrez un nom de fichier\n");
 				erreur = 1;
 			}
-			
 		}
-		else if (args[id_arg][0] != '-') {
-			char *user = NULL;
-			user = getenv("USER");
-			if (strcmp(user, "root") == 0) {
+		else if (args[id_arg][0] != '-' || sont_egales(args[id_arg], "-b")
+										|| sont_egales(args[id_arg], "--boot")) {
+			if (sont_egales(args[id_arg], "-b") || sont_egales(args[id_arg], "--boot"))
+				id_arg++;
+			if (estRoot(NULL)) {
 				if (args[id_arg] != NULL && strlen(args[id_arg]) < HOST_NAME_MAX)
 					sethostname(args[id_arg], sizeof(args[id_arg]));
 				else {
@@ -1109,13 +1182,11 @@ int cmdInt_hostname (char **args)
 				erreur = 1;
 			}
 		}
-		
-		id_arg++;
 	}
 	
 	if (args[0] == NULL) 
 	{
-		if (gethostname(hostname, sizeof(hostname)) == 0);
+		if (gethostname(hostname, sizeof(hostname)) == 0)
 			printf("%s\n", hostname);
 	}
 	
