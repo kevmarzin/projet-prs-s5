@@ -89,7 +89,7 @@ struct tm *analyser_date (char *date_donnee) {
 	else {
 		char **mots = split_str(date_donnee, ' ');
 		
-		int nb_mots = nbArguments(mots);
+		int nb_mots = LongueurListe(mots);
 		char *mot_lower;
 		
 		if (nb_mots > 0) {
@@ -249,7 +249,7 @@ int cmdInt_history (char **args) {
 	int taille_hist = etat_hist->length;
 	
 	int nb_lignes_specifie = 0;
-	int nb_args = nbArguments(args);
+	int nb_args = LongueurListe(args);
 	
 	int erreur = 0;
 	int clear = 0;
@@ -453,7 +453,7 @@ int cmdInt_history (char **args) {
 			free_history_entry (remove_history (taille_hist - 1));
 		}
 		else if(options_ps[1]){
-			if ((nb_args = nbArguments(option_ps_chaine)) > 0){
+			if ((nb_args = LongueurListe(option_ps_chaine)) > 0){
 				char *nouvelle_entree = malloc(nb_args * 40 + nb_args);
 				memset (nouvelle_entree, '\0', nb_args * 40 + nb_args);
 				
@@ -1225,9 +1225,9 @@ int cmdInt_remote (char **args) {
 						strcpy (src, REPERTOIRE_SHELL);
 						strcat (src, "/Shell");
 						
-						char dest[strlen(args[id_arg]) + 3 + strlen("Shell") + 1]; // taille de nomMachine:~/Shell (avec '\0')
+						char dest[strlen(args[id_arg]) + strlen(":/tmp/Shell") + 1]; // taille de nomMachine:/tmp/Shell (avec '\0')
 						strcpy (dest, args[id_arg]);
-						strcat (dest, ":~/Shell");
+						strcat (dest, ":/tmp/Shell");
 						
 						execlp("scp", "scp", src, dest, NULL);
 						exit (EXIT_FAILURE);
@@ -1259,7 +1259,7 @@ int cmdInt_remote (char **args) {
 			it = LongueurListe (SHELLS_DISTANTS) - 1;
 			while (it >= 0 && !erreur){
 				if (fork() == 0) {
-					execlp("ssh", "ssh", SHELLS_DISTANTS[it], "rm", "~/Shell", NULL);
+					execlp("ssh", "ssh", SHELLS_DISTANTS[it], "rm", "/tmp/Shell", NULL);
 					exit (EXIT_FAILURE);
 				}
 				else {
@@ -1288,12 +1288,13 @@ int cmdInt_remote (char **args) {
 						char **args_nouvelle_cmd  = InitialiserListeArguments();
 						AjouterArg (args_nouvelle_cmd, "ssh");
 						AjouterArg (args_nouvelle_cmd, SHELLS_DISTANTS[it]);
+						AjouterArg (args_nouvelle_cmd, "/tmp/Shell");
 						while (args[id_premier_arg_cmd] != NULL) {
 							AjouterArg (args_nouvelle_cmd, args[id_premier_arg_cmd]);
 							id_premier_arg_cmd++;
 						}
 						
-						printf ("---- %s ----\n", SHELLS_DISTANTS[it]);
+						printf ("\033[1;36;40m---- %s ----\033[0m\n", SHELLS_DISTANTS[it]);
 						execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
 						exit (EXIT_FAILURE);
 					}
@@ -1318,12 +1319,12 @@ int cmdInt_remote (char **args) {
 					char **args_nouvelle_cmd  = InitialiserListeArguments();
 					AjouterArg (args_nouvelle_cmd, "ssh");
 					AjouterArg (args_nouvelle_cmd, args[id_arg]);
+					AjouterArg (args_nouvelle_cmd, "/tmp/Shell");
 					while (args[id_premier_arg_cmd] != NULL) {
 						AjouterArg (args_nouvelle_cmd, args[id_premier_arg_cmd]);
 						id_premier_arg_cmd++;
 					}
-					
-					printf ("---- %s ----\n", args[id_arg]);
+					printf ("\033[1;32;40m---- %s ----\033[0m\n", args[id_arg]);
 					execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
 					exit (EXIT_FAILURE);
 				}
@@ -1336,7 +1337,7 @@ int cmdInt_remote (char **args) {
 			}
 			else {
 				erreur = 1;
-				fprintf (stderr, "Veuillez entrez une commande\n");
+				fprintf (stderr, "remote : veuillez entrez une commande\n");
 			}
 		}
 		else {

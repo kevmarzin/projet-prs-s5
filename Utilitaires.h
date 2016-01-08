@@ -32,11 +32,6 @@ extern int sont_egales (const char *src1, const char *src2);
 extern void supprimer_char (char *chaine, int pos);
 
 /*
- * Renvoie le nombre d'arguments d'un tableau d'argument (finissant par une case = NULL)
- */
-extern int nbArguments (char **tab_args);
-
-/*
  * Si la chaine est uniquement composée de chiffre, 1 est renvoyé sinon 0
  */
 extern int estNombre (const char *chaine);

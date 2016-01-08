@@ -73,14 +73,6 @@ void supprimer_char (char *chaine, int pos){
 		}
 }
 
-int nbArguments (char **tab_args) {
-	int id_arg = 0;
-	while (tab_args[id_arg] != NULL)
-		id_arg++;
-	
-	return id_arg;
-}
-
 int estNombre (const char *chaine) {
 	int i = 0;
 	int chaineEstNombre = 1;

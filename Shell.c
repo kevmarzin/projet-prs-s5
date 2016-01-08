@@ -120,11 +120,11 @@ void expression_free (Expression * e){
  * Mémorisation dans l'historique des commandes
  * Analyse de la ligne lue 
  */
-int my_yyparse (void){
+int my_yyparse (char *cmd){
 	if (interactive_mode){
 		char *line = NULL;
 		char buffer[1024];
-		snprintf (buffer, 1024, "mini_shell(%d):", status);
+		snprintf (buffer, 1024, "\033[1;32;40mmini_shell(%d):\033[0m", status);
 		line = readline (buffer);
 		if (line != NULL){
 			int ret;
@@ -143,12 +143,9 @@ int my_yyparse (void){
 		// pour le mode distant par exemple
 		int ret;
 		int c;
-		char *line = NULL;
-		size_t linecap = 0;
-		ssize_t linelen;
-		linelen = getline (&line, &linecap, stdin);
-		if (linelen > 0){
-			int ret;
+		char *line = cmd;
+		if (line != NULL) {
+			*strchr (line, '\0') = '\n';
 			ret = yyparse_string (line);
 			free (line);
 			return ret;
@@ -199,7 +196,9 @@ int my_yyparse (void){
 
 int main (int argc, char **argv){
 	interactive_mode = (argc == 1);
-	
+
+	char *chaine_cmd_distante = NULL;
+	int taille_cmd_distante = 0;
 	int i;
 	REPERTOIRE_SHELL = get_current_dir_name();
 	
@@ -221,20 +220,38 @@ int main (int argc, char **argv){
 		using_history ();
 	}
 	else { // Mode distant
+		i = 1;
+		while (argv[i] != NULL){
+			taille_cmd_distante += strlen (argv[i]);
+			if (argv[i + 1] != NULL)
+				taille_cmd_distante += 1; // taille de l'espace
+			i++;
+		}
 		
+		chaine_cmd_distante = malloc (taille_cmd_distante + 1);
+		memset (chaine_cmd_distante, '\0', taille_cmd_distante + 1);
+		
+		i = 1;
+		while (argv[i] != NULL){
+			strcat (chaine_cmd_distante, argv[i]);
+			if (argv[i + 1] != NULL)
+				strcat (chaine_cmd_distante, " ");
+			i++;
+		}
+			
 	}
 
 	while (!EXIT_PROG){
-		if (my_yyparse () == 0){/* L'analyse a abouti */
+		if (my_yyparse (chaine_cmd_distante) == 0){/* L'analyse a abouti */
 			afficher_expr (ExpressionAnalysee);
 			evaluer_expr (ExpressionAnalysee);
 			fflush (stdout);
 			expression_free (ExpressionAnalysee);
-			
-			// On quitte la boucle lorsque l'on est en mode distant
-			EXIT_PROG = !interactive_mode ? 1 : EXIT_PROG;
 		}
 		else {/* L'analyse de la ligne de commande a donné une erreur */}
+		
+		// On quitte la boucle lorsque l'on est en mode distant
+		EXIT_PROG = !interactive_mode ? 1 : EXIT_PROG;
 	}
 	
 	free (REPERTOIRE_SHELL);
