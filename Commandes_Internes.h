@@ -31,4 +31,9 @@ extern int cmdInt_hostname (char **args);
  */
 extern int cmdInt_exit ();
 
+/*
+ * Commande remote.
+ */
+extern int cmdInt_remote (char **args);
+
 #endif

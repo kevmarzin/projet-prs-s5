@@ -4,8 +4,6 @@
 #include "Affichage.h"
 #include "Evaluation.h"
 
-#include <stdbool.h>
-#include <stdio.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -17,8 +15,12 @@ const char* LISTE_SIGNAUX[NB_SIGNAUX] = {
 	"SIGWINCH", "SIGIO", "SIGPWR", "SIGSYS"
 };
 
+char *REPERTOIRE_SHELL;
+
 extern int yyparse_string (char *);
 
+
+int EXIT_PROG = 0;
 bool interactive_mode = 1;	// par défaut on utilise readline 
 int status = 0;			// valeur retournée par la dernière commande
 
@@ -105,7 +107,7 @@ void expression_free (Expression * e){
 
 	if (e->arguments != NULL){
 		for (int i = 0; e->arguments[i] != NULL; i++)
-		free (e->arguments[i]);
+			free (e->arguments[i]);
 		free (e->arguments);
 	}
 
@@ -196,20 +198,30 @@ int my_yyparse (void){
       `----------------------------------------------------------------------------------------*/
 
 int main (int argc, char **argv){
-	memset (PIDS_BG, -1, NB_PROCS_BG_MAX);
-	/*
+	interactive_mode = (argc == 1);
+	
 	int i;
-	for (i = 0; i < NB_PROCS_BG_MAX; i++)
-		NOM_PROCS_BG[i] = NULL;
-	*/
-	EXIT_PROG = 0;
+	REPERTOIRE_SHELL = get_current_dir_name();
 	
 	// faire en sorte qu'interactive_mode = 0 lorsque le shell est distant 
-	if (interactive_mode) {
+	if (interactive_mode) { // Mode interactif
+		// Initialisation du tableau qui va stocker les pid des processus lancés en tâche de fond
+		memset (PIDS_BG, -1, NB_CMDS_BG_MAX);
+		
+		// Initialisation du tableau qui va stocker les commandes sous forme de chaîne de caractères des processus
+		// lancées en tâche de fond
+		for (i = 0; i < NB_CMDS_BG_MAX; i++)
+			CMDS_BG[i] = NULL;
+		
+		// Initialisation du tableau qui va stocker les noms des machines distantes
+		for (i = 0; i < NB_SHELLS_DISTANTS_MAX; i++)
+			SHELLS_DISTANTS[i] = NULL;
+		
+		// Initialisation de l'historique
 		using_history ();
 	}
-	else{
-		//  mode distant 
+	else { // Mode distant
+		
 	}
 
 	while (!EXIT_PROG){
@@ -218,8 +230,13 @@ int main (int argc, char **argv){
 			evaluer_expr (ExpressionAnalysee);
 			fflush (stdout);
 			expression_free (ExpressionAnalysee);
+			
+			// On quitte la boucle lorsque l'on est en mode distant
+			EXIT_PROG = !interactive_mode ? 1 : EXIT_PROG;
 		}
 		else {/* L'analyse de la ligne de commande a donné une erreur */}
 	}
+	
+	free (REPERTOIRE_SHELL);
 	return 0;
 }

@@ -159,8 +159,7 @@ char *remplacer (char *chaine, const char *str_a_remplacer, const char *str_remp
     return (res != NULL) ? res : chaine;
 }
 
-int estRoot (char *user) 
-{
+int estRoot (char *user) {
 	user = getenv("USER");
-	return (strcmp(user, "root") == 0) ? 1 : 0;
+	return sont_egales (user, "root");
 }

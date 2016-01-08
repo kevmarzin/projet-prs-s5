@@ -9,6 +9,7 @@
 #include <readline/history.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <signal.h>
 #include <limits.h>
 #include <netdb.h>
@@ -832,8 +833,7 @@ int cmdInt_date (char **args){
 	return !erreur;
 }
 
-int cmdInt_kill (char **args)
-{
+int cmdInt_kill (char **args){
 	int id_arg = 0;
 	int erreur = 0;
 	int id_liste_signaux = 0;
@@ -1015,8 +1015,7 @@ int cmdInt_kill (char **args)
 	return !erreur;
 }
 
-int cmdInt_hostname (char **args) 
-{
+int cmdInt_hostname (char **args) {
 	int erreur = 0;
 	int stop = 0;
 	int id_arg = 0;
@@ -1024,8 +1023,7 @@ int cmdInt_hostname (char **args)
 	char *domainname;
 	char nisdomainname[256];
 	
-	while (args[id_arg] != NULL && !stop) 
-	{
+	while (args[id_arg] != NULL && !stop) {
 		if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
 			//Afficher la version et ne pas prendre en compte n'importe quel autre arg
 			stop = 1;
@@ -1051,8 +1049,7 @@ int cmdInt_hostname (char **args)
 								&& !sont_egales(args[id_arg], "--boot")
 								&& !sont_egales(args[id_arg], "--file") 
 								&& !sont_egales(args[id_arg], "-F")
-								&& args[id_arg][0] == '-' && !erreur)
-	{
+								&& args[id_arg][0] == '-' && !erreur){
 		if (strlen(args[id_arg]) == 1)
 			erreur = 1;
 		if (args[id_arg + 1] == NULL) {
@@ -1129,8 +1126,7 @@ int cmdInt_hostname (char **args)
 									|| sont_egales(args[id_arg], "--boot")
 									|| sont_egales(args[id_arg], "-F")
 									|| sont_egales(args[id_arg], "--file")
-								    || args[id_arg][0] != '-')) 
-	{
+								    || args[id_arg][0] != '-')) {
 		if (sont_egales(args[id_arg], "-F") || sont_egales(args[id_arg], "--file")) {
 			if (args[++id_arg] != NULL) {
 				int fd = open(args[id_arg], O_RDONLY);
@@ -1193,7 +1189,166 @@ int cmdInt_hostname (char **args)
 	return !erreur;
 }
 
-int cmdInt_exit () 
-{
+int cmdInt_exit () {
 	return 1;
+}
+
+int estUneMachineDistante (char *machine) {
+	int it = 0;
+	int machine_trouvee = 0;
+	while (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL && !machine_trouvee) {
+		if (sont_egales(machine, SHELLS_DISTANTS[it]))
+			machine_trouvee = 1;
+		else
+			it++;
+	}
+	return machine_trouvee;
+}
+
+
+int cmdInt_remote (char **args) {
+	int erreur = 0;
+	int id_arg = 0;
+	int it = 0;
+	int status_fils;
+	
+	int id_premier_arg_cmd;
+	
+	if (args[id_arg] != NULL) {
+		if (sont_egales(args[id_arg], "add")){
+			if (args[id_arg + 1] != NULL) {
+				id_arg++;
+				it = LongueurListe(SHELLS_DISTANTS);
+				while (args[id_arg] != NULL && !erreur){
+					if (fork()==0) {
+						char src[strlen(REPERTOIRE_SHELL) + 1 + strlen("Shell") + 1]; // taille de RepertoireDuShell/Shell (avec '\0')
+						strcpy (src, REPERTOIRE_SHELL);
+						strcat (src, "/Shell");
+						
+						char dest[strlen(args[id_arg]) + 3 + strlen("Shell") + 1]; // taille de nomMachine:~/Shell (avec '\0')
+						strcpy (dest, args[id_arg]);
+						strcat (dest, ":~/Shell");
+						
+						execlp("scp", "scp", src, dest, NULL);
+						exit (EXIT_FAILURE);
+					}
+					else {
+						wait(&status_fils);
+						if (WEXITSTATUS (status_fils) == EXIT_SUCCESS) {
+							SHELLS_DISTANTS[it] = malloc(strlen(args[id_arg]) + 1);
+							strcpy(SHELLS_DISTANTS[it], args[id_arg]);
+							it++;
+							SHELLS_DISTANTS[it] = NULL;
+						}
+						else {
+							char *args_nouvelle_cmd[] = { "remove" };
+							cmdInt_remote ( args_nouvelle_cmd );
+							erreur = 1; 
+							fprintf (stderr, "remote : %s : Machine distante inconnue ou service indisponible\n", args[id_arg]);
+						}
+					}
+					id_arg++;
+				}
+			}
+			else {
+				fprintf(stderr, "remote : veuillez entrer un nom de machine distante\n");
+				erreur = 1;
+			}
+		}
+		else if (sont_egales(args[id_arg], "remove")){
+			it = LongueurListe (SHELLS_DISTANTS) - 1;
+			while (it >= 0 && !erreur){
+				if (fork() == 0) {
+					execlp("ssh", "ssh", SHELLS_DISTANTS[it], "rm", "~/Shell", NULL);
+					exit (EXIT_FAILURE);
+				}
+				else {
+					wait(&status_fils);
+					
+					free (SHELLS_DISTANTS[it]);
+					SHELLS_DISTANTS[it] = NULL;
+				}
+				it--;
+			}
+		}
+		else if (sont_egales(args[id_arg], "list")){
+			it = 0;
+			while (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it]) {
+				printf("%s\n", SHELLS_DISTANTS[it]);
+				it++;
+			}
+		}
+		else if (sont_egales(args[id_arg], "all")){
+			it = 0;
+			id_arg++;
+			if (args[id_arg] != NULL) {
+				while (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL && !erreur) {
+					if (fork() == 0) {
+						id_premier_arg_cmd = id_arg;
+						char **args_nouvelle_cmd  = InitialiserListeArguments();
+						AjouterArg (args_nouvelle_cmd, "ssh");
+						AjouterArg (args_nouvelle_cmd, SHELLS_DISTANTS[it]);
+						while (args[id_premier_arg_cmd] != NULL) {
+							AjouterArg (args_nouvelle_cmd, args[id_premier_arg_cmd]);
+							id_premier_arg_cmd++;
+						}
+						
+						printf ("---- %s ----\n", SHELLS_DISTANTS[it]);
+						execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
+						exit (EXIT_FAILURE);
+					}
+					else {
+						wait(&status_fils);
+						
+						if (!WIFEXITED (status_fils))
+							printf ("remote : la commande a été interrompue\n");
+					}
+					it++;
+				}
+			}
+			else {
+				erreur = 1;
+				fprintf (stderr, "Veuillez entrez une commande\n");
+			}
+		}
+		else if (estUneMachineDistante(args[id_arg])){
+			if (args[id_arg] != NULL) {
+				if (fork() == 0) {
+					id_premier_arg_cmd = id_arg + 1;
+					char **args_nouvelle_cmd  = InitialiserListeArguments();
+					AjouterArg (args_nouvelle_cmd, "ssh");
+					AjouterArg (args_nouvelle_cmd, args[id_arg]);
+					while (args[id_premier_arg_cmd] != NULL) {
+						AjouterArg (args_nouvelle_cmd, args[id_premier_arg_cmd]);
+						id_premier_arg_cmd++;
+					}
+					
+					printf ("---- %s ----\n", args[id_arg]);
+					execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
+					exit (EXIT_FAILURE);
+				}
+				else {
+					wait(&status_fils);
+					
+					if (!WIFEXITED (status_fils))
+						printf ("remote : la commande a été interrompue\n");
+				}
+			}
+			else {
+				erreur = 1;
+				fprintf (stderr, "Veuillez entrez une commande\n");
+			}
+		}
+		else {
+			erreur = 1;
+			fprintf (stderr, "remote : %s : option invalide\n", args[id_arg]);
+		}
+	}
+	else {
+		erreur = 1;
+		fprintf (stderr, "remote : argument nécessaire\n");
+		fprintf (stderr, "remote : usage : \tremote add liste-de-machines\n\t\t\tremote remove\n\t\t\tremote list\n\t\t\tremote nom-machine commande-simple\n\t\t\tremote all commande-simple\n");
+	}
+	
+	return !erreur;
 }
