@@ -1308,6 +1308,9 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 	
 	int retour_fils = 1;
 	
+	int tube [2];
+	pipe(tube);
+	
 	while (une_seule_machine || (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL)) {
 		
 		// Machine sur laquelle on doit lancer la commande
@@ -1321,7 +1324,24 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 			machine_distante = SHELLS_DISTANTS[it];
 		
 		if (fork() == 0) {
+			close (tube[1]);
+			dup2(tube[0], STDIN_FILENO);
+			close (tube[0]);
+			
+			char xcat[strlen(REPERTOIRE_SHELL) + strlen("/xcat.sh") + 1];
+			strcpy (xcat, REPERTOIRE_SHELL);
+			strcat (xcat, "/xcat.sh");
+			execlp ("sh", "sh", xcat, NULL);
+			exit (EXIT_FAILURE);
+		}
+		
+		if (fork() == 0) {
 			char **args_nouvelle_cmd  = InitialiserListeArguments();
+			
+			close (tube[0]);
+			dup2(tube[1], STDOUT_FILENO);
+			dup2(tube[1], STDERR_FILENO);
+			close (tube[1]);
 			
 			// Construction de la commande : ssh MachineDistante /tmp/Shell
 			AjouterArg (args_nouvelle_cmd, "ssh");
@@ -1336,7 +1356,7 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 			}
 			
 			// Affichage du nom de la machine
-			printf ("\033[1;36;40m---- %s ----\033[0m\n", machine_courante);
+			printf ("\033[1;36m---- %s ----\033[0m\n", machine_courante);
 			
 			// Exécution de la commande
 			execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
@@ -1352,6 +1372,10 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 		}
 		it++;
 	}
+	
+	close (tube[0]);
+	close (tube[1]);
+	
 	return retour_fils;
 }
 

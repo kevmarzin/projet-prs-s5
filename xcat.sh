@@ -5,8 +5,8 @@ FIFO=$(mktemp -u)
 mkfifo $FIFO
 
 # first reader
-xterm $@ -e "cat < $FIFO" &
-# trap "kill $!" 0
+xterm $@ -e "cat < $FIFO ; $SHELL" &
+# trap "kill $!"
 
 # second writer
 cat > $FIFO
@@ -14,4 +14,3 @@ wait
 
 # remove fifo
 rm -f $FIFO
-
