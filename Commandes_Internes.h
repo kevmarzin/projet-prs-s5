@@ -3,6 +3,7 @@
 
 #include <time.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 
 /*
  * Pour enlever le warning "implicit declaration of function..."
