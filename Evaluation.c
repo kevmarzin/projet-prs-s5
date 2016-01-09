@@ -151,6 +151,8 @@ int evaluer_expr_simple (char **args){
 		ret = cmdInt_hostname (args + 1);
 	else if (sont_egales (args[0], "remote"))
 		ret = cmdInt_remote (args + 1);
+	else if (sont_egales (args[0], "pwd"))
+		ret = cmdInt_pwd(args + 1);
 	else { //Commande externe exécutée
 		pid_t fpid;
 		if ((fpid = fork()) == 0) { /* Commande extern */

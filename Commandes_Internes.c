@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <time.h>
 #include <string.h>
 #include <readline/history.h>
@@ -16,118 +17,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-// Pour enlever le warning incompréhensible "implicit declaration of function sethostname..."
-int sethostname(const char *name, size_t len);
-
-int calcul_date (struct tm *date, int nbr, const char *mot){
-	// Identification du jour de la semaine donné, si ça n'en est pas un : -1
-	int jour_semaine = 	(sont_egales (mot, "sun") || sont_egales (mot, "sunday"))	? 0 :
-						(sont_egales (mot, "mon") || sont_egales (mot, "monday"))	? 1 :
-						(sont_egales (mot, "tue") || sont_egales (mot, "tuesday"))	? 2 :
-						(sont_egales (mot, "wed") || sont_egales (mot, "wednesday"))? 3 :
-						(sont_egales (mot, "thu") || sont_egales (mot, "thursday"))	? 4 :
-						(sont_egales (mot, "fri") || sont_egales (mot, "friday"))	? 5 :
-						(sont_egales (mot, "sat") || sont_egales (mot, "saturday"))	? 6 : -1;
-	
-	// Conversion de la structure de date en secondes depuis l'Epoch (1970)
-	time_t date_en_secondes = mktime(date);
-	
-	if(sont_egales(mot, "year")) {
-		date->tm_year += nbr;
-		mktime(date); // Maj du numéro du jour de la semaine
-	}else if(sont_egales(mot, "month")) {
-		int annee_suivante = 0;
-		date->tm_mon = (annee_suivante = ((date->tm_mon + nbr) > 11)) ? 0 : (date->tm_mon + nbr);
-		date->tm_year = annee_suivante ? (date->tm_year + 1) : date->tm_year;
-		mktime(date);
-	}
-	else if(sont_egales(mot, "day")) {
-		date_en_secondes += nbr * (60*60*24);
-		date = localtime(&date_en_secondes);
-	}
-	else if(sont_egales(mot, "hour")){
-		date_en_secondes += nbr * (60*60);
-		date = localtime(&date_en_secondes);
-	}
-	else if(sont_egales(mot, "minute")){
-		date_en_secondes += nbr * 60;
-		date = localtime(&date_en_secondes);
-	}
-	else if(sont_egales(mot, "second")) {
-		date_en_secondes += nbr * 60;
-		date = localtime(&date_en_secondes);
-	}
-	else if (nbr == 1 && jour_semaine != -1) {
-		int nb_jour = jour_semaine - date->tm_wday;
-		nb_jour = nb_jour <= 0  ? nb_jour + 7 : nb_jour;
-		calcul_date (date, nb_jour, "day");
-	}
-	else
-		return 0;
-	
-	return 1;
-}
-
-struct tm *analyser_date (char *date_donnee) {
-	time_t timestamp = time(NULL);
-	struct tm *date = localtime (&timestamp);
-	int erreur = 0;
-	
-	if (estNombre (date_donnee)) {
-		if (strlen (date_donnee) <= 4 && strlen (date_donnee) >= 1) {
-			date->tm_sec = 0;
-			date->tm_min = 0;
-			strptime(date_donnee, "%H%M", date);
-		}
-		else if (strlen (date_donnee) > 4) {
-			strptime(date_donnee, "%Y%m%d", date);
-			date->tm_sec = 0;
-			date->tm_min = 0;
-			date->tm_hour = 0;
-		}
-	}
-	else {
-		char **mots = split_str(date_donnee, ' ');
-		
-		int nb_mots = LongueurListe(mots);
-		char *mot_lower;
-		
-		if (nb_mots > 0) {
-			if (sont_egales ((mot_lower = strtolower(mots[0])), "next") && mots[1] != NULL) {
-				free (mot_lower);
-				erreur = !(calcul_date (date, 1, (mot_lower = strtolower(mots[1]))));
-				free (mot_lower);
-			}
-			else if (nb_mots == 3 && sont_egales( (mot_lower = strtolower(mots[nb_mots - 1])), "ago") && estNombre (mots[0])) {
-				free (mot_lower);
-				erreur = !(calcul_date (date, atoi(mots[0]) * -1, (mot_lower = strtolower(mots[1]))));
-				free (mot_lower);
-			}
-		}
-		else if (mots[0][3] == ':')
-			strptime(date_donnee, "%T %D", date);
-		else if (mots[1] != NULL && mots[1][3] == ':')
-			strptime(date_donnee, "%D %T", date);
-		else 
-			strptime(date_donnee, "%a, %d %b %Y %T", date);
-		
-		int i = 0;
-		while (mots[i] != NULL) {
-			free (mots[i]);
-			i++;
-		}
-		free (mots);
-	}
-	
-	return !erreur ? date : NULL;
-}
-
-void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique, int *arret_sortie) {
+/*
+ * Supprime les \\ d'une chaine donné en paramètre d'une commande echo.
+ */
+void supprimer_contre_oblique_echo (char *chaine, int option_e, int *arret_sortie) {
 	int i = 0;
 	
 	while (chaine[i] != '\0' && !(*arret_sortie)) {
-		if (interpreter_contre_oblique 	&& chaine[i] == '\\'
-										&& chaine[i+1] == '\\') {
+		if (option_e 	&& chaine[i] == '\\'
+						&& chaine[i+1] == '\\') {
 			switch (chaine[i+2]){
 				case 'a':
 					supprimer_char (chaine, i);
@@ -179,7 +77,7 @@ void supprimer_contre_oblique_echo (char *chaine, int interpreter_contre_oblique
 					break;
 			}
 		}
-		else if (chaine[i] == '\\' && !interpreter_contre_oblique) {
+		else if (chaine[i] == '\\' && !option_e) {
 			supprimer_char (chaine, i); // Suppression du '\'
 			i++; // Caractère suivant passé
 		}
@@ -197,12 +95,12 @@ int cmdInt_echo(char **args){
 	int id_arg_debut_affichage = -1;
 	
 	int saut_de_ligne_final = 1;
-	int interpreter_contre_oblique = 0;
+	int option_e = 0;
 	int arret_sortie = 0;
 	
 	int erreur = 0;
 	
-	//Lecture de tout les arguments de la commande, sauf si interpreter_contre_oblique && "\\c" présent dans la sortie
+	//Lecture de tout les arguments de la commande, sauf si option_e && "\\c" présent dans la sortie
 	while (args[id_arg] != NULL && !arret_sortie) {
 		// Lecture des options, jusqu'à ce qu'une option inconnue soit lue
 		if (args[id_arg][0] == '-' 	&& strlen (args[id_arg]) == 2
@@ -210,7 +108,7 @@ int cmdInt_echo(char **args){
 			if (args[id_arg][1] == 'n')
 				saut_de_ligne_final = 0;
 			else if (args[id_arg][1] == 'e')
-				interpreter_contre_oblique = 1;
+				option_e = 1;
 			else if (args[id_arg][1] == 'E')
 				;
 			else
@@ -226,8 +124,9 @@ int cmdInt_echo(char **args){
 				printf (" ");
 			
 			char *affichage = args[id_arg];
+
 			//interprétation des '\\' de la sortie, suivant les options données
-			supprimer_contre_oblique_echo (affichage, interpreter_contre_oblique, &arret_sortie);
+			supprimer_contre_oblique_echo (affichage, option_e, &arret_sortie);
 			
 			//affichage de la sortie
 			printf ("%s", affichage);
@@ -243,261 +142,126 @@ int cmdInt_echo(char **args){
 	return !erreur;
 }
 
-int cmdInt_history (char **args) {
-	HISTORY_STATE *etat_hist = history_get_history_state();
-	HIST_ENTRY **hists = etat_hist->entries;
-	int taille_hist = etat_hist->length;
+/*
+ * Modifie la structure de date en fonction de nbr et mot
+ * si nbr = 1 et mot = day : calcule "next day"
+ * si nbr = -2 et mot = Month : calcule "2 days ago"
+ */
+int calcul_date (struct tm *date, int nbr, const char *mot){
+	// Identification du jour de la semaine donné, si ça n'en est pas un : -1
+	int jour_semaine = 	(sont_egales (mot, "sun") || sont_egales (mot, "sunday"))	? 0 :
+						(sont_egales (mot, "mon") || sont_egales (mot, "monday"))	? 1 :
+						(sont_egales (mot, "tue") || sont_egales (mot, "tuesday"))	? 2 :
+						(sont_egales (mot, "wed") || sont_egales (mot, "wednesday"))? 3 :
+						(sont_egales (mot, "thu") || sont_egales (mot, "thursday"))	? 4 :
+						(sont_egales (mot, "fri") || sont_egales (mot, "friday"))	? 5 :
+						(sont_egales (mot, "sat") || sont_egales (mot, "saturday"))	? 6 : -1;
 	
-	int nb_lignes_specifie = 0;
-	int nb_args = LongueurListe(args);
+	// Conversion de la structure de date en secondes depuis l'Epoch (1970)
+	time_t date_en_secondes = mktime(date);
+	
+	if(sont_egales(mot, "year")) {
+		date->tm_year += nbr;
+		mktime(date); // Maj du numéro du jour de la semaine
+	}else if(sont_egales(mot, "month")) {
+		int annee_suivante = 0;
+		date->tm_mon = (annee_suivante = ((date->tm_mon + nbr) > 11)) ? 0 : (date->tm_mon + nbr);
+		date->tm_year = annee_suivante ? (date->tm_year + 1) : date->tm_year;
+		mktime(date);
+	}
+	else if(sont_egales(mot, "day")) {
+		date_en_secondes += nbr * (60*60*24);
+		date = localtime(&date_en_secondes);
+	}
+	else if(sont_egales(mot, "hour")){
+		date_en_secondes += nbr * (60*60);
+		date = localtime(&date_en_secondes);
+	}
+	else if(sont_egales(mot, "minute")){
+		date_en_secondes += nbr * 60;
+		date = localtime(&date_en_secondes);
+	}
+	else if(sont_egales(mot, "second")) {
+		date_en_secondes += nbr * 60;
+		date = localtime(&date_en_secondes);
+	}
+	else if (nbr == 1 && jour_semaine != -1) {
+		int nb_jour = jour_semaine - date->tm_wday;
+		nb_jour = nb_jour <= 0  ? nb_jour + 7 : nb_jour;
+		calcul_date (date, nb_jour, "day");
+	}
+	else
+		return 0;
+	
+	return 1;
+}
+
+/*
+ * Fonction appelée quand lutilisateur rentre : date -d date_donnee 
+ */
+struct tm *analyser_date (char *date_donnee) {
+	// Calcul de la date du jour
+	time_t timestamp = time(NULL);
+	struct tm *date = localtime (&timestamp);
 	
 	int erreur = 0;
-	int clear = 0;
-	int elem_a_suppr = -1;
 	
-	int options_anrw[] = { 0, 0, 0, 0 };
-	char *file_hist = NULL;
-	
-	int option_d = 0;
-	int options_ps[] = {0, 0};
-	char **option_ps_chaine = NULL;
-	
-	int id_arg = 0;
-	
-	if (args[id_arg] != NULL && args[id_arg][0] == '-' && strlen(args[id_arg]) > 1) {
-		int longueur_arg;
-		
-		while (!erreur && args[id_arg] != NULL) {
-			if (args[id_arg][0] == '-') {
-				longueur_arg = strlen(args[id_arg]);
-					
-				if (commence_par (args[id_arg], "-d")){
-					if (sont_egales(args[id_arg], "-d")){
-						id_arg ++;
-						if (args[id_arg] != NULL && estNombre (args[id_arg])) { // l'argument existe et est un nombre
-							// On relève l'argument
-							elem_a_suppr = atoi (args[id_arg]);
-							
-							// Si 1 <= elem_a_suppr <= taillede l'historique, c'est bon sinon Erreur
-							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
-								erreur = 1;
-								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
-							}
-						}
-						else if (args[id_arg] != NULL) { // L'argument n'est pas un nombre
-							fprintf (stderr, "history : %s : position dans l'historique hors plage\n", args[id_arg]);
-							erreur = 1;
-						}
-						else { // Pas d'option après le -d
-							fprintf (stderr, "history : -d : l'option a besoin d'un argument\n");
-							erreur = 1;
-						}
-					}
-					else  { // Argument de -d collé
-						if (estNombre (args[id_arg] + 2)) { // vérification du type, nbr = c'est bon, sinon Erreur
-							elem_a_suppr = atoi (args[id_arg] + 2);
-							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
-								erreur = 1;
-								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
-							}
-						}
-						else {
-							fprintf (stderr, "history : %s : argument numérique nécessaire\n", args[id_arg] + 2);
-							erreur = 1;
-						}
-					}
-				}
-				else {
-					int id_char = 1;
-					while (args[id_arg][id_char] != '\0' && !erreur) {
-						char option_en_cours = args[id_arg][id_char];
-						if ((option_en_cours == 'a' || option_en_cours == 'n'
-												   || option_en_cours == 'r'
-												   || option_en_cours == 'w') && !options_ps[0]
-																			  && !options_ps[1]
-																			  && !clear
-																			  && !option_d) {
-							if (option_en_cours == 'a'  && !options_anrw[1]
-														&& !options_anrw[2]
-														&& !options_anrw[3]) {
-								options_anrw[0] = 1;
-								file_hist = args[id_arg + 1];
-							}
-							else if (option_en_cours == 'n' && !options_anrw[0]
-															&& !options_anrw[2]
-															&& !options_anrw[3]){
-								options_anrw[1] = 1;
-								file_hist = args[id_arg + 1];
-							}
-							else if (option_en_cours == 'r' && !options_anrw[0]
-															&& !options_anrw[1]
-															&& !options_anrw[3]) {
-								options_anrw[2] = 1;
-								file_hist = args[id_arg + 1];
-							}
-							else if (option_en_cours == 'w' && !options_anrw[0]
-															&& !options_anrw[2]
-															&& !options_anrw[2]) {
-								options_anrw[3] = 1;
-								file_hist = args[id_arg + 1];
-							}
-							else {
-								erreur = 1;
-								printf ("history: impossible d'utiliser plus d'une option parmi « -anrw »\n");
-							}
-						}
-						else if (option_en_cours == 'p'   && !options_anrw[0]
-																&& !options_anrw[1]
-																&& !options_anrw[2]
-																&& !options_anrw[3]
-																&& !clear
-																&& !option_d){
-							if (!options_ps[1]){
-								option_ps_chaine = args + (id_arg + 1);
-								options_ps[0] = 1;
-							}
-						}
-						else if (option_en_cours == 's'  && !options_anrw[0]
-															&& !options_anrw[1]
-															&& !options_anrw[2]
-															&& !options_anrw[3]
-															&& !clear
-															&& !option_d){
-							if (!options_ps[0]){
-								option_ps_chaine = args + (id_arg + 1);
-								options_ps[1] = 1;
-							}
-						}
-						else if (option_en_cours == 'd' && (options_anrw[0] || options_anrw[1]
-																			|| options_anrw[2]
-																			|| options_anrw[3]
-																			|| options_ps[0]
-																			|| options_ps[1])) {
-							erreur = 1;
-							fprintf (stderr, "history : options incompatibles\n");
-							fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
-						}
-						else if (option_en_cours == 'c' && !(options_anrw[0] || options_anrw[1]
-																			|| options_anrw[2]
-																			|| options_anrw[3]
-																			|| options_ps[0]
-																			|| options_ps[1])){
-							clear = 1;
-						}
-						else {
-							erreur = 1;
-							if (option_en_cours == 'c'  || option_en_cours == 'd'
-														|| option_en_cours == 'p'
-														|| option_en_cours == 's'
-														|| option_en_cours == 'a'
-														|| option_en_cours == 'n'
-														|| option_en_cours == 'r'
-														|| option_en_cours == 'w')
-								fprintf (stderr, "history : options incompatibles\n");
-							else
-								fprintf (stderr, "history : -%c : option non valable\n", option_en_cours);
-							fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
-						}
-						id_char++;
-					}
-					if (!erreur && (options_anrw[0] || options_anrw[1]
-													|| options_anrw[2]
-													|| options_anrw[0]))
-						id_arg++;
-				}
-			}
-			
-			if (args[id_arg] != NULL){
-				id_arg++;
-			}	
+	//Si la date donnée est un nombre
+	if (estNombre (date_donnee)) {
+		//Si la date contient entre 1 et 4 chiffre elle est vue comme l'heure (%H%M)
+		if (strlen (date_donnee) <= 4 && strlen (date_donnee) >= 1) {
+			date->tm_sec = 0;
+			date->tm_min = 0;
+			strptime(date_donnee, "%H%M", date);
 		}
-	}
-	else if ((nb_lignes_specifie = (args[0] != NULL && estNombre(args[0]))) || args[0] == NULL) {
-		if (nb_args > 1) {
-			fprintf (stderr, "history : trop d'arguments");
-			erreur = 1;
-		}
-		else {
-			int id_hist = 0;
-			
-			if (nb_lignes_specifie) {
-				id_hist = taille_hist - atoi(args[0]);
-				if (id_hist < 0)
-					id_hist = 0;
-			}
-			
-			while (hists[id_hist] != NULL && taille_hist > 0) {
-				printf("  %d\t%s\n", id_hist + 1, hists[id_hist]->line);
-				id_hist++;
-			}
+		//Sinon comme une date %Y%m%d
+		else if (strlen (date_donnee) > 4) {
+			strptime(date_donnee, "%Y%m%d", date);
+			date->tm_sec = 0;
+			date->tm_min = 0;
+			date->tm_hour = 0;
 		}
 	}
 	else {
-		fprintf (stderr, "history : %s : argument numérique nécessaire", args[0]);
-		erreur = 1;
+		// On met les mots de la dates donné dans un tableau
+		char **mots = split_str(date_donnee, ' ');
+		
+		int nb_mots = LongueurListe(mots);
+		char *mot_lower;
+		
+		if (nb_mots > 2) {
+			if (sont_egales ((mot_lower = strtolower(mots[0])), "next") && mots[1] != NULL) {
+				free (mot_lower);
+				erreur = !(calcul_date (date, 1, (mot_lower = strtolower(mots[1]))));
+				free (mot_lower);
+			}
+			else if (nb_mots == 3 && sont_egales( (mot_lower = strtolower(mots[nb_mots - 1])), "ago") && estNombre (mots[0])) {
+				free (mot_lower);
+				erreur = !(calcul_date (date, atoi(mots[0]) * -1, (mot_lower = strtolower(mots[1]))));
+				free (mot_lower);
+			}
+		}
+		else if (mots[0][3] == ':')
+			strptime(date_donnee, "%T %D", date);
+		else if (mots[1] != NULL && mots[1][3] == ':')
+			strptime(date_donnee, "%D %T", date);
+		else 
+			strptime(date_donnee, "%a, %d %b %Y %T", date);
+		
+		int i = 0;
+		while (mots[i] != NULL) {
+			free (mots[i]);
+			i++;
+		}
+		free (mots);
 	}
 	
-	if (!erreur){
-		if (clear){ // history -c
-			clear_history();
-		}
-		else if (elem_a_suppr != -1){ // history -d n
-			free_history_entry (remove_history (elem_a_suppr - 1));
-		}
-		else if(options_ps[0]) { // history -p ...
-			int i = 0;
-			while (option_ps_chaine[i] != NULL){
-				printf("%s\n", option_ps_chaine[i]);
-				i++;
-			}
-			free_history_entry (remove_history (taille_hist - 1));
-		}
-		else if(options_ps[1]){
-			if ((nb_args = LongueurListe(option_ps_chaine)) > 0){
-				char *nouvelle_entree = malloc(nb_args * 40 + nb_args);
-				memset (nouvelle_entree, '\0', nb_args * 40 + nb_args);
-				
-				int taille_chaine = 0;
-				int i = 0;
-				while (taille_chaine != -1 && option_ps_chaine[i] != NULL){
-					if (taille_chaine + strlen (option_ps_chaine[i]) < nb_args * 40 + nb_args - 1) {
-						strcat (nouvelle_entree, option_ps_chaine[i]);
-						strcat (nouvelle_entree, " ");
-						taille_chaine += strlen (option_ps_chaine[i]) + 1;
-					}
-					else 
-						taille_chaine = -1;
-					
-					i++;
-				}
-				free_history_entry (replace_history_entry (taille_hist - 1, nouvelle_entree, NULL));
-				free (nouvelle_entree);
-			}
-		}
-		else if(options_anrw[0] || options_anrw[1]
-								|| options_anrw[2]
-								|| options_anrw[3]){
-			int fd;
-			if (options_anrw[0]) {
-				printf ("%s\n", file_hist);
-				if (file_hist != NULL && (fd = open (file_hist, O_CREAT | O_APPEND, 0644)) != -1)
-					close (fd);
-				erreur = append_history (taille_hist, file_hist);
-			}
-			else if (options_anrw[1] || options_anrw[2])
-				erreur = read_history (file_hist);
-			else if (options_anrw[3]) 
-				erreur = history_truncate_file (file_hist, taille_hist);
-			
-			if (erreur)
-				printf("ERREUR %d\n", erreur);
-			
-		}
-	}
-	
-	return !erreur;
+	return !erreur ? date : NULL;
 }
 
+/*
+ * Commande date
+ */
 int cmdInt_date (char **args){
 	int id_arg = 0;
 	
@@ -516,6 +280,9 @@ int cmdInt_date (char **args){
 	
 	int erreur = 0;
 	
+	char *set_date = NULL;
+	
+	// Parcours de tous les arguments de la commande et vérification de leur validité tant que on a pas trouvé d'erreur
 	while (args[id_arg] != NULL && !erreur) {
 		if (sont_egales (args[id_arg], "-d")|| sont_egales (args[id_arg], "--date") 
 											|| commence_par (args[id_arg], "--date=")){
@@ -673,8 +440,38 @@ int cmdInt_date (char **args){
 				}
 			}
 		}
-		else if (strcmp(args[id_arg], "-s") == 0 || strcmp(args[id_arg], "--set=") == 0)
-			;
+		else if (commence_par (args[id_arg], "-s") || sont_egales (args[id_arg], "--set") 
+												  || commence_par (args[id_arg], "--set=")){
+			if (estRoot(NULL)) {
+				if (sont_egales (args[id_arg], "-s") || sont_egales (args[id_arg], "--set")) {
+					if ( args[id_arg + 1] != NULL )
+						set_date = args[++id_arg];
+					else {
+						erreur = 1;
+						fprintf (stderr, "date : %s : l'option requiert un argument\n", args[id_arg]);
+					}
+				}
+				else if (commence_par (args[id_arg], "-s")) {
+					set_date = args[id_arg] + 2;
+				}
+				else if (commence_par (args[id_arg], "--set=")) {
+					if (!sont_egales (args[id_arg], "--set=")){
+						set_date = args[id_arg] + strlen ("--set=");
+					}
+					else if (args[id_arg + 1] != NULL){
+						set_date = args[++id_arg];
+					}
+					else {
+						erreur = 1;
+						fprintf (stderr, "date : %s : l'option requiert un argument\n", args[id_arg]);
+					}
+				}
+			}
+			else {
+				erreur = 1;
+				fprintf (stderr, "date: impossible d'initialiser la date: Opération non permise\n");
+			}
+		}
 		else if (sont_egales (args[id_arg], "-u") || sont_egales (args[id_arg], "--utc") 
 												  || sont_egales (args[id_arg], "--universal"))
 			option_utc = 1;
@@ -697,7 +494,10 @@ int cmdInt_date (char **args){
 		id_arg++;
 	}
 	
-	if (!erreur && (nb_options_format == 0 || nb_options_format == 1) && (nb_options_date == 0 || nb_options_date == 1)) {
+	// On vérifie que les options donnée ne sont pas incompatibles entre elles
+	if (!erreur && (nb_options_format == 0 || nb_options_format == 1)
+				&& (nb_options_date == 0    || (nb_options_date == 1 && set_date == NULL) 
+											|| (nb_options_date == 0 && set_date != NULL))) {
 		char buffer[256];
 		time_t timestamp;
 		struct tm *date;
@@ -717,6 +517,12 @@ int cmdInt_date (char **args){
 			else if (strcmp(argument_iso8601, "ns") == 0)
 				format = "%F %R,%N%z";
 		}
+		
+		if (set_date != NULL) {
+			nb_options_date = 1;
+			date_donnee = set_date;
+		}
+		
 		if (nb_options_date == 0) {
 			clock_gettime (CLOCK_REALTIME, &timestamp_avec_ns);
 			timestamp = timestamp_avec_ns.tv_sec;
@@ -813,6 +619,11 @@ int cmdInt_date (char **args){
 				date = gmtime(&timestamp);
 			}
 			
+			if (set_date != NULL) {
+				timestamp = mktime(date);
+				stime (&timestamp);
+			}
+			
 			strftime(buffer, sizeof(buffer), format, date);
 			printf("%s\n", buffer);
 		}
@@ -828,6 +639,277 @@ int cmdInt_date (char **args){
 	else if (!erreur && nb_options_date > 1) {
 		fprintf (stderr, "date : les options pour indiquer les dates d'impression sont mutuellement exclusives\n");
 		erreur = 1;
+	}
+	
+	return !erreur;
+}
+
+/*
+ * Commande pwd.
+ */
+int cmdInt_pwd(char **args) {
+	char *res = get_current_dir_name();
+	printf ("%s\n", res);
+	free (res);
+	return 1;
+}
+
+/*
+ * Commande history.
+ */
+int cmdInt_history (char **args) {
+	HISTORY_STATE *etat_hist = history_get_history_state();
+	HIST_ENTRY **hists = etat_hist->entries;
+	int taille_hist = etat_hist->length;
+	
+	int nb_lignes_specifie = 0;
+	int nb_args = LongueurListe(args);
+	
+	int erreur = 0;
+	int clear = 0;
+	int elem_a_suppr = -1;
+	
+	int options_anrw[] = { 0, 0, 0, 0 };
+	char *file_hist = NULL;
+	
+	int option_d = 0;
+	int options_ps[] = {0, 0};
+	char **option_ps_chaine = NULL;
+	
+	int id_arg = 0;
+	
+	if (args[id_arg] != NULL && args[id_arg][0] == '-' && strlen(args[id_arg]) > 1) {
+		int longueur_arg;
+		
+		while (!erreur && args[id_arg] != NULL) {
+			if (args[id_arg][0] == '-') {
+				longueur_arg = strlen(args[id_arg]);
+					
+				if (commence_par (args[id_arg], "-d")){
+					if (sont_egales(args[id_arg], "-d")){
+						id_arg ++;
+						if (args[id_arg] != NULL && estNombre (args[id_arg])) { // l'argument existe et est un nombre
+							// On relève l'argument
+							elem_a_suppr = atoi (args[id_arg]);
+							
+							// Si 1 <= elem_a_suppr <= taillede l'historique, c'est bon sinon Erreur
+							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
+								erreur = 1;
+								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
+							}
+						}
+						else if (args[id_arg] != NULL) { // L'argument n'est pas un nombre
+							fprintf (stderr, "history : %s : position dans l'historique hors plage\n", args[id_arg]);
+							erreur = 1;
+						}
+						else { // Pas d'option après le -d
+							fprintf (stderr, "history : -d : l'option a besoin d'un argument\n");
+							erreur = 1;
+						}
+					}
+					else  { // Argument de -d collé
+						if (estNombre (args[id_arg] + 2)) { // vérification du type, nbr = c'est bon, sinon Erreur
+							elem_a_suppr = atoi (args[id_arg] + 2);
+							if (elem_a_suppr < 1 || elem_a_suppr > taille_hist) {
+								erreur = 1;
+								fprintf (stderr, "history : %d : position dans l'historique hors plage\n", elem_a_suppr);
+							}
+						}
+						else {
+							fprintf (stderr, "history : %s : argument numérique nécessaire\n", args[id_arg] + 2);
+							erreur = 1;
+						}
+					}
+				}
+				else {
+					int id_char = 1;
+					while (args[id_arg][id_char] != '\0' && !erreur) {
+						char option_en_cours = args[id_arg][id_char];
+						if ((option_en_cours == 'a' || option_en_cours == 'n'
+												   || option_en_cours == 'r'
+												   || option_en_cours == 'w') && !options_ps[0]
+																			  && !options_ps[1]
+																			  && !clear
+																			  && !option_d) {
+							if (option_en_cours == 'a'  && !options_anrw[1]
+														&& !options_anrw[2]
+														&& !options_anrw[3]) {
+								options_anrw[0] = 1;
+								file_hist = args[id_arg + 1];
+							
+							}
+							else if (option_en_cours == 'n' && !options_anrw[0]
+															&& !options_anrw[2]
+															&& !options_anrw[3]){
+								options_anrw[1] = 1;
+								file_hist = args[id_arg + 1];
+							}
+							else if (option_en_cours == 'r' && !options_anrw[0]
+															&& !options_anrw[1]
+															&& !options_anrw[3]) {
+								options_anrw[2] = 1;
+								file_hist = args[id_arg + 1];
+							}
+							else if (option_en_cours == 'w' && !options_anrw[0]
+															&& !options_anrw[2]
+															&& !options_anrw[2]) {
+								options_anrw[3] = 1;
+								file_hist = args[id_arg + 1];
+							}
+							else {
+								erreur = 1;
+								printf ("history: impossible d'utiliser plus d'une option parmi « -anrw »\n");
+							}
+						}
+						else if (option_en_cours == 'p'   && !options_anrw[0]
+																&& !options_anrw[1]
+																&& !options_anrw[2]
+																&& !options_anrw[3]
+																&& !clear
+																&& !option_d){
+							if (!options_ps[1]){
+								option_ps_chaine = args + (id_arg + 1);
+								options_ps[0] = 1;
+							}
+						}
+						else if (option_en_cours == 's'  && !options_anrw[0]
+															&& !options_anrw[1]
+															&& !options_anrw[2]
+															&& !options_anrw[3]
+															&& !clear
+															&& !option_d){
+							if (!options_ps[0]){
+								option_ps_chaine = args + (id_arg + 1);
+								options_ps[1] = 1;
+							}
+						}
+						else if (option_en_cours == 'd' && (options_anrw[0] || options_anrw[1]
+																			|| options_anrw[2]
+																			|| options_anrw[3]
+																			|| options_ps[0]
+																			|| options_ps[1])) {
+							erreur = 1;
+							fprintf (stderr, "history : options incompatibles\n");
+							fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
+						}
+						else if (option_en_cours == 'c' && !(options_anrw[0] || options_anrw[1]
+																			|| options_anrw[2]
+																			|| options_anrw[3]
+																			|| options_ps[0]
+																			|| options_ps[1])){
+							clear = 1;
+						}
+						else {
+							erreur = 1;
+							if (option_en_cours == 'c'  || option_en_cours == 'd'
+														|| option_en_cours == 'p'
+														|| option_en_cours == 's'
+														|| option_en_cours == 'a'
+														|| option_en_cours == 'n'
+														|| option_en_cours == 'r'
+														|| option_en_cours == 'w')
+								fprintf (stderr, "history : options incompatibles\n");
+							else
+								fprintf (stderr, "history : -%c : option non valable\n", option_en_cours);
+							fprintf (stderr, "history : utilisation : history [-c] [-d décalage] [n] \n\t\t\tou history -anrw [nomfichier] \n\t\t\tou history -ps arg [arg...]\n");
+						}
+						id_char++;
+					}
+					if (!erreur && (options_anrw[0] || options_anrw[1]
+													|| options_anrw[2]
+													|| options_anrw[0]))
+						id_arg++;
+				}
+			}
+			
+			if (args[id_arg] != NULL){
+				id_arg++;
+			}	
+		}
+	}
+	else if ((nb_lignes_specifie = (args[0] != NULL && estNombre(args[0]))) || args[0] == NULL) {
+		if (nb_args > 1) {
+			fprintf (stderr, "history : trop d'arguments");
+			erreur = 1;
+		}
+		else {
+			int id_hist = 0;
+			
+			if (nb_lignes_specifie) {
+				id_hist = taille_hist - atoi(args[0]);
+				if (id_hist < 0)
+					id_hist = 0;
+			}
+			
+			while (hists[id_hist] != NULL && taille_hist > 0) {
+				printf("  %d\t%s\n", id_hist + 1, hists[id_hist]->line);
+				id_hist++;
+			}
+		}
+	}
+	else {
+		fprintf (stderr, "history : %s : argument numérique nécessaire", args[0]);
+		erreur = 1;
+	}
+	if (!erreur){
+		if (clear){ // history -c
+			clear_history();
+		}
+		else if (elem_a_suppr != -1){ // history -d n
+			free_history_entry (remove_history (elem_a_suppr - 1));
+		}
+		else if(options_ps[0]) { // history -p ...
+			int i = 0;
+			while (option_ps_chaine[i] != NULL){
+				printf("%s\n", option_ps_chaine[i]);
+				i++;
+			}
+			free_history_entry (remove_history (taille_hist - 1));
+		}
+		else if(options_ps[1]){
+			if ((nb_args = LongueurListe(option_ps_chaine)) > 0){
+				char *nouvelle_entree = malloc(nb_args * 40 + nb_args);
+				memset (nouvelle_entree, '\0', nb_args * 40 + nb_args);
+				
+				int taille_chaine = 0;
+				int i = 0;
+				while (taille_chaine != -1 && option_ps_chaine[i] != NULL){
+					if (taille_chaine + strlen (option_ps_chaine[i]) < nb_args * 40 + nb_args - 1) {
+						strcat (nouvelle_entree, option_ps_chaine[i]);
+						strcat (nouvelle_entree, " ");
+						taille_chaine += strlen (option_ps_chaine[i]) + 1;
+					}
+					else 
+						taille_chaine = -1;
+					
+					i++;
+				}
+				free_history_entry (replace_history_entry (taille_hist - 1, nouvelle_entree, NULL));
+				free (nouvelle_entree);
+			}
+		}
+		else if(options_anrw[0] || options_anrw[1]
+								|| options_anrw[2]
+								|| options_anrw[3]){
+			
+			int fd;
+			if (options_anrw[0]) {
+				if (file_hist != NULL && (fd = open (file_hist, O_CREAT | O_WRONLY | O_APPEND, 0644)) != -1)
+					close (fd);
+				erreur = (append_history (taille_hist, file_hist) == 0);
+				
+			}
+			else if (options_anrw[1] || options_anrw[2]){
+				if (file_hist != NULL && (fd = open (file_hist, O_CREAT | O_RDONLY)) != -1)
+					close (fd);
+				erreur = (read_history (file_hist) == 0);
+			}
+			else if (options_anrw[3]) {
+				if (file_hist != NULL && (fd = open (file_hist, O_CREAT | O_WRONLY | O_APPEND, 0644)) != -1)
+					close (fd);
+				erreur = (write_history (file_hist) == 0);
+			}
+		}
 	}
 	
 	return !erreur;
@@ -1021,7 +1103,7 @@ int cmdInt_hostname (char **args) {
 	int id_arg = 0;
 	char hostname[HOST_NAME_MAX];
 	char *domainname;
-	char nisdomainname[256];
+	char *nisdomainname;//[256];
 	
 	while (args[id_arg] != NULL && !stop) {
 		if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
@@ -1062,7 +1144,7 @@ int cmdInt_hostname (char **args) {
 			else if (sont_egales(args[id_arg], "-d") || sont_egales(args[id_arg], "--domain")) {
 				struct hostent *hp;
 
-				gethostname(hostname, sizeof(hostname));
+				gethostname(hostname, sizeof(hostname)); 
 				hp = gethostbyname(hostname);
 				domainname = strchr(hp->h_name, '.');
 				if ( domainname != NULL ) {
@@ -1104,7 +1186,8 @@ int cmdInt_hostname (char **args) {
 			}
 			else if (sont_egales(args[id_arg], "-s") || sont_egales(args[id_arg], "--short")) {
 				// S'arrête au premier '.'
-				if (gethostname(hostname, sizeof(hostname)) == 0) {
+				size_t size = sizeof(hostname);
+				if (gethostname(hostname, size) == 0) {
 					int i = 0;
 					while (hostname[i] != '.') {
 						printf("%c", hostname[i]);
@@ -1114,7 +1197,7 @@ int cmdInt_hostname (char **args) {
 				}
 			}
 			else if (sont_egales(args[id_arg], "-y") || sont_egales(args[id_arg], "--yp") || sont_egales(args[id_arg], "--nis")) {
-				if (getdomainname(nisdomainname, sizeof(nisdomainname)) == 0)
+				if (getdomainname(nisdomainname, (size_t) sizeof(nisdomainname)) == 0)
 					printf("%s\n", nisdomainname);
 			}
 		}
@@ -1166,8 +1249,9 @@ int cmdInt_hostname (char **args) {
 			if (sont_egales(args[id_arg], "-b") || sont_egales(args[id_arg], "--boot"))
 				id_arg++;
 			if (estRoot(NULL)) {
-				if (args[id_arg] != NULL && strlen(args[id_arg]) < HOST_NAME_MAX)
-					sethostname(args[id_arg], sizeof(args[id_arg]));
+				if (args[id_arg] != NULL && strlen(args[id_arg]) < HOST_NAME_MAX) {
+					sethostname(args[id_arg], (size_t) sizeof(args[id_arg]));
+				}
 				else {
 					fprintf(stderr, "Argument vide ou trop long\n");
 					erreur = 1;
@@ -1180,9 +1264,8 @@ int cmdInt_hostname (char **args) {
 		}
 	}
 	
-	if (args[0] == NULL) 
-	{
-		if (gethostname(hostname, sizeof(hostname)) == 0)
+	if (args[0] == NULL) {
+		if (gethostname(hostname, (size_t) sizeof(hostname)) == 0)
 			printf("%s\n", hostname);
 	}
 	
@@ -1205,6 +1288,73 @@ int estUneMachineDistante (char *machine) {
 	return machine_trouvee;
 }
 
+/*
+ * Execute en ssh sur machine_distante fic_distant, avec comme paramètre args_commande.
+ * Si machine_distante est NULL, la commande ssh est effectuée sur toute les machines distantes stockées dans SHELLS_DISTANTS
+ */
+int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *fic_distant) {
+	int it = 0;
+	int une_seule_machine = 0;
+	
+	if (machine_distante != NULL){
+		une_seule_machine = 1;
+		it = NB_SHELLS_DISTANTS_MAX;
+	}
+	
+	char *machine_courante = NULL;
+	
+	int id_arg;
+	int status_fils;
+	
+	int retour_fils = 1;
+	
+	while (une_seule_machine || (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL)) {
+		
+		// Machine sur laquelle on doit lancer la commande
+		if (une_seule_machine) {
+			machine_courante = machine_distante;
+			
+			// On arrête la boucle après ce tour
+			une_seule_machine = 0;
+		}
+		else
+			machine_distante = SHELLS_DISTANTS[it];
+		
+		if (fork() == 0) {
+			char **args_nouvelle_cmd  = InitialiserListeArguments();
+			
+			// Construction de la commande : ssh MachineDistante /tmp/Shell
+			AjouterArg (args_nouvelle_cmd, "ssh");
+			AjouterArg (args_nouvelle_cmd, machine_courante);
+			AjouterArg (args_nouvelle_cmd, fic_distant);
+			
+			//Ajout de la commande que le Shell distant va exécuter
+			id_arg = 0;
+			while (args_commande[id_arg] != NULL) {
+				AjouterArg (args_nouvelle_cmd, args_commande[id_arg]);
+				id_arg++;
+			}
+			
+			// Affichage du nom de la machine
+			printf ("\033[1;36;40m---- %s ----\033[0m\n", machine_courante);
+			
+			// Exécution de la commande
+			execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
+			exit (EXIT_FAILURE);
+		}
+		else {
+			// Attente que la commande se termine.
+			wait(&status_fils);
+			
+			// Si aucun fils n'a retourné d'erreur
+			if (retour_fils)
+				retour_fils = (WEXITSTATUS(status) != EXIT_SUCCESS);
+		}
+		it++;
+	}
+	return retour_fils;
+}
+
 
 int cmdInt_remote (char **args) {
 	int erreur = 0;
@@ -1214,135 +1364,142 @@ int cmdInt_remote (char **args) {
 	
 	int id_premier_arg_cmd;
 	
+	char *fic_tmp = "/tmp/Shell.remote.tmp";
+	char *fic_distant = "/tmp/Shell";
+	int fd;
+	
+	// Vérification qu'un argument est donné à la commande
 	if (args[id_arg] != NULL) {
-		if (sont_egales(args[id_arg], "add")){
+		// Vérification que le premier argument donné est bien un de ses arguments : add, remove, list, all,
+		// une machine ajouté précédemment à la liste. Sinon il y a erreur
+		if (sont_egales(args[id_arg], "add")){ // ajout des machines passées en paramètre à la liste
+			// On vérifie qu'au moins un nom est donné en suivant, il y a erreur sinon.
 			if (args[id_arg + 1] != NULL) {
 				id_arg++;
+				
+				// Positionnement à la fin de la liste de noms de machines distantes
 				it = LongueurListe(SHELLS_DISTANTS);
-				while (args[id_arg] != NULL && !erreur){
-					if (fork()==0) {
-						char src[strlen(REPERTOIRE_SHELL) + 1 + strlen("Shell") + 1]; // taille de RepertoireDuShell/Shell (avec '\0')
-						strcpy (src, REPERTOIRE_SHELL);
-						strcat (src, "/Shell");
-						
-						char dest[strlen(args[id_arg]) + strlen(":/tmp/Shell") + 1]; // taille de nomMachine:/tmp/Shell (avec '\0')
-						strcpy (dest, args[id_arg]);
-						strcat (dest, ":/tmp/Shell");
-						
-						execlp("scp", "scp", src, dest, NULL);
-						exit (EXIT_FAILURE);
-					}
-					else {
-						wait(&status_fils);
-						if (WEXITSTATUS (status_fils) == EXIT_SUCCESS) {
-							SHELLS_DISTANTS[it] = malloc(strlen(args[id_arg]) + 1);
-							strcpy(SHELLS_DISTANTS[it], args[id_arg]);
-							it++;
-							SHELLS_DISTANTS[it] = NULL;
+				
+				// Parcours de tous les noms de machines donnés
+				while (args[id_arg] != NULL && !erreur && it < NB_SHELLS_DISTANTS_MAX){
+					if (!sont_egales (args[id_arg], "all")) {
+						// Envoie sur la machine distante de l'éxecutable de l'aplication
+						if (fork() == 0) {
+							// Construction de la chaine source du scp : RepertoireDeLApplication/Shell
+							char src[strlen(REPERTOIRE_SHELL) + 1 + strlen("Shell") + 1];
+							strcpy (src, REPERTOIRE_SHELL);
+							strcat (src, "/Shell");
+							
+							//Construction de la chaine de destination du scp : nomMachine:/tmp/Shell
+							char dest[strlen(args[id_arg]) + strlen(":") + strlen(fic_distant) + 1];
+							strcpy (dest, args[id_arg]);
+							strcat (dest, ":");
+							strcat (dest, fic_distant);
+							
+							// Aucune sortie du transfert de fichier se fait dans le terminal courant
+							// Cela se fait dans un fichier tmp
+							if ((fd = open (fic_tmp, O_CREAT | O_WRONLY | O_APPEND, 0644)) != -1) {
+								dup2 (fd, STDOUT_FILENO);
+								dup2 (fd, STDERR_FILENO);
+								close (fd);
+							}
+							
+							// Execution de la commande
+							execlp("scp", "scp", src, dest, NULL);
+							
+							// Si la commande a générer une erreur
+							exit (EXIT_FAILURE);
 						}
 						else {
-							char *args_nouvelle_cmd[] = { "remove" };
-							cmdInt_remote ( args_nouvelle_cmd );
-							erreur = 1; 
-							fprintf (stderr, "remote : %s : Machine distante inconnue ou service indisponible\n", args[id_arg]);
+							// Attente de la fin de la commande
+							wait(&status_fils);
+							
+							if (WEXITSTATUS (status_fils) == EXIT_SUCCESS) {
+								SHELLS_DISTANTS[it] = malloc(strlen(args[id_arg]) + 1);
+								strcpy(SHELLS_DISTANTS[it], args[id_arg]);
+								
+								printf ("%s ajouté à la liste de machines distantes.\n", SHELLS_DISTANTS[it]);
+								
+								if (++it < NB_SHELLS_DISTANTS_MAX)
+									SHELLS_DISTANTS[it] = NULL;
+								else
+									printf ("remote : liste remplie, arrêt de la commande. Les machines à partir de %s n'ont pas été ajoutés\n", args[id_arg + 1]);
+							}
+							else {
+								/*char *args_nouvelle_cmd[] = { "remove" };
+								cmdInt_remote ( args_nouvelle_cmd );
+								erreur = 1; */
+								/*f*/printf (/*stderr, */"remote : %s : Machine distante inconnue ou service indisponible.\n", args[id_arg]);
+							}
 						}
+					}
+					else {
+						printf ("remote : %s : Nom de machine non accepté.\n", args[id_arg]);
 					}
 					id_arg++;
 				}
 			}
 			else {
-				fprintf(stderr, "remote : veuillez entrer un nom de machine distante\n");
+				fprintf(stderr, "remote : veuillez entrer un nom de machine distante.\n");
 				erreur = 1;
 			}
 		}
 		else if (sont_egales(args[id_arg], "remove")){
+			// On se place à la fin de la liste.
 			it = LongueurListe (SHELLS_DISTANTS) - 1;
+			
+			// Parcours de la liste.
 			while (it >= 0 && !erreur){
 				if (fork() == 0) {
-					execlp("ssh", "ssh", SHELLS_DISTANTS[it], "rm", "/tmp/Shell", NULL);
+					// Les sorties standard et d'erreur sont rediriger vers un fichier temporaire
+					if ((fd = open (fic_tmp, O_CREAT | O_WRONLY | O_APPEND, 0644)) != -1) {
+						dup2 (fd, STDOUT_FILENO);
+						dup2 (fd, STDERR_FILENO);
+						close (fd);
+					}
+					
+					// Execution de la commande
+					execlp("ssh", "ssh", SHELLS_DISTANTS[it], "rm", fic_distant, NULL);
 					exit (EXIT_FAILURE);
 				}
 				else {
+					// Attente de la suppression de l'executable sur la machine distante
 					wait(&status_fils);
 					
+					// Machine distante enlevée de la liste même si la suppression du fichier génère une erreur
 					free (SHELLS_DISTANTS[it]);
 					SHELLS_DISTANTS[it] = NULL;
 				}
 				it--;
 			}
+			
+			// Message de fin.
+			printf ("Toutes les machines ont été enlevées de la liste.\n");
 		}
-		else if (sont_egales(args[id_arg], "list")){
+		else if (sont_egales(args[id_arg], "list")){ // affichage de la liste de machine distante
 			it = 0;
-			while (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it]) {
+			while (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL) {
 				printf("%s\n", SHELLS_DISTANTS[it]);
 				it++;
 			}
 		}
-		else if (sont_egales(args[id_arg], "all")){
+		else if (sont_egales(args[id_arg], "all") || estUneMachineDistante(args[id_arg])){
 			it = 0;
-			id_arg++;
-			if (args[id_arg] != NULL) {
-				while (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL && !erreur) {
-					if (fork() == 0) {
-						id_premier_arg_cmd = id_arg;
-						char **args_nouvelle_cmd  = InitialiserListeArguments();
-						AjouterArg (args_nouvelle_cmd, "ssh");
-						AjouterArg (args_nouvelle_cmd, SHELLS_DISTANTS[it]);
-						AjouterArg (args_nouvelle_cmd, "/tmp/Shell");
-						while (args[id_premier_arg_cmd] != NULL) {
-							AjouterArg (args_nouvelle_cmd, args[id_premier_arg_cmd]);
-							id_premier_arg_cmd++;
-						}
-						
-						printf ("\033[1;36;40m---- %s ----\033[0m\n", SHELLS_DISTANTS[it]);
-						execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
-						exit (EXIT_FAILURE);
-					}
-					else {
-						wait(&status_fils);
-						
-						if (!WIFEXITED (status_fils))
-							printf ("remote : la commande a été interrompue\n");
-					}
-					it++;
-				}
+			if (args[id_arg + 1] != NULL) {
+				if (sont_egales(args[id_arg], "all"))
+					erreur = !cmdInt_remote_execCmd (NULL, args + (id_arg + 1), fic_distant);
+				else
+					erreur = !cmdInt_remote_execCmd (args[id_arg], args + (id_arg + 1), fic_distant);
 			}
 			else {
 				erreur = 1;
-				fprintf (stderr, "Veuillez entrez une commande\n");
-			}
-		}
-		else if (estUneMachineDistante(args[id_arg])){
-			if (args[id_arg] != NULL) {
-				if (fork() == 0) {
-					id_premier_arg_cmd = id_arg + 1;
-					char **args_nouvelle_cmd  = InitialiserListeArguments();
-					AjouterArg (args_nouvelle_cmd, "ssh");
-					AjouterArg (args_nouvelle_cmd, args[id_arg]);
-					AjouterArg (args_nouvelle_cmd, "/tmp/Shell");
-					while (args[id_premier_arg_cmd] != NULL) {
-						AjouterArg (args_nouvelle_cmd, args[id_premier_arg_cmd]);
-						id_premier_arg_cmd++;
-					}
-					printf ("\033[1;32;40m---- %s ----\033[0m\n", args[id_arg]);
-					execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
-					exit (EXIT_FAILURE);
-				}
-				else {
-					wait(&status_fils);
-					
-					if (!WIFEXITED (status_fils))
-						printf ("remote : la commande a été interrompue\n");
-				}
-			}
-			else {
-				erreur = 1;
-				fprintf (stderr, "remote : veuillez entrez une commande\n");
+				fprintf (stderr, "Veuillez entrer une commande.\n");
 			}
 		}
 		else {
 			erreur = 1;
 			fprintf (stderr, "remote : %s : option invalide\n", args[id_arg]);
+			fprintf (stderr, "remote : usage : \tremote add liste-de-machines\n\t\t\tremote remove\n\t\t\tremote list\n\t\t\tremote nom-machine commande-simple\n\t\t\tremote all commande-simple\n");
 		}
 	}
 	else {

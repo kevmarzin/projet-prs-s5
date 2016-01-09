@@ -202,6 +202,9 @@ int main (int argc, char **argv){
 	int i;
 	REPERTOIRE_SHELL = get_current_dir_name();
 	
+	int retour = EXIT_SUCCESS;
+	int retour_evaluation = 1;
+	
 	// faire en sorte qu'interactive_mode = 0 lorsque le shell est distant 
 	if (interactive_mode) { // Mode interactif
 		// Initialisation du tableau qui va stocker les pid des processus lancés en tâche de fond
@@ -244,7 +247,8 @@ int main (int argc, char **argv){
 	while (!EXIT_PROG){
 		if (my_yyparse (chaine_cmd_distante) == 0){/* L'analyse a abouti */
 			afficher_expr (ExpressionAnalysee);
-			evaluer_expr (ExpressionAnalysee);
+			if ((retour_evaluation = evaluer_expr (ExpressionAnalysee)) && !interactive_mode)
+				retour = retour_evaluation;
 			fflush (stdout);
 			expression_free (ExpressionAnalysee);
 		}
@@ -255,5 +259,5 @@ int main (int argc, char **argv){
 	}
 	
 	free (REPERTOIRE_SHELL);
-	return 0;
+	return retour;
 }
