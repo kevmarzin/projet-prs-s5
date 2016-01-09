@@ -1137,6 +1137,7 @@ int cmdInt_hostname (char **args) {
 		if (args[id_arg + 1] == NULL) {
 			if (sont_egales(args[id_arg], "-a") || sont_egales(args[id_arg], "--alias")) {
 				// Je ne sais pas à quoi ça correspond
+				// deprecated
 			}
 			else if (sont_egales(args[id_arg], "-A") || sont_egales(args[id_arg], "--all-fqdns")) {
 				// Pas compris
@@ -1178,11 +1179,64 @@ int cmdInt_hostname (char **args) {
 
 				freeaddrinfo(info);
 			}
-			else if (sont_egales(args[id_arg], "-i") || sont_egales(args[id_arg], "--ip-address")) {
+			else if (sont_egales(args[id_arg], "-i") || sont_egales(args[id_arg], "--ip-address") 
+					|| sont_egales(args[id_arg], "-I") || sont_egales(args[id_arg], "--all-ip-addresses")) {
+				struct addrinfo hints, *res, *p;
+				struct sockaddr_in *h;
+				void *addr;
+				int status;
+				char ipstr[INET6_ADDRSTRLEN], ipver, ip[100];
+			
+				gethostname(hostname, sizeof(hostname));
+
+				memset(&hints, 0, sizeof hints);
+				hints.ai_family = AF_UNSPEC;
+				hints.ai_socktype = SOCK_STREAM;
+				hints.ai_flags = AI_CANONNAME;
+
+				if ((getaddrinfo(hostname, "http", &hints, &res)) != 0) {
+					fprintf(stderr, "Erreur dans la récupération");
+					erreur = 1;
+				}
 				
-			}
-			else if (sont_egales(args[id_arg], "-I") || sont_egales(args[id_arg], "--all-ip-addresses")) {
+				if (sont_egales(args[id_arg], "-i") || sont_egales(args[id_arg], "--ip-address")) {
+					p = res;
+					while (p != NULL) {
+						// Identification de l'adresse courante
+						if (p->ai_family == AF_INET) { // IPv4
+							struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+							addr = &(ipv4->sin_addr);
+							ipver = '4';
+						}
+						else { // IPv6
+							struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
+							addr = &(ipv6->sin6_addr);
+							ipver = '6';
+						}
+
+						// Conversion de l'adresse IP en une chaîne de caractères
+						inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
+						printf("%s\n", ipstr);
+
+						// Adresse suivante
+						p = p->ai_next;
+					}
+				}
+				else {
+					// Pas trouvé
+					/*
+					p = res;
+					while (p != NULL) {
+						h = (struct sockaddr_in *) p->ai_addr;
+						inet_ntop(p->ai_family, &(h->sin_addr), ipstr, sizeof ipstr);
+						printf("%s\n", ipstr);
+						
+						p = p->ai_next;
+					}*/
+				}
 				
+				// Libération de la mémoire occupée par les enregistrements
+				freeaddrinfo(res);
 			}
 			else if (sont_egales(args[id_arg], "-s") || sont_egales(args[id_arg], "--short")) {
 				// S'arrête au premier '.'
@@ -1212,26 +1266,28 @@ int cmdInt_hostname (char **args) {
 								    || args[id_arg][0] != '-')) {
 		if (sont_egales(args[id_arg], "-F") || sont_egales(args[id_arg], "--file")) {
 			if (args[++id_arg] != NULL) {
-				int fd = open(args[id_arg], O_RDONLY);
-				if (fd != -1) {
+				FILE *fd = fopen(args[id_arg], "r");
+				if (fd != NULL) {
+					char *str;
 					if (estRoot(NULL)) {
-						char c;
-						while (read(fd, &c, 1)) {
-							write(STDOUT_FILENO, &c, 1);
-						}/*
-						if (strlen(chaine) > 0 && strlen(chaine) < HOST_NAME_MAX) {
-							sethostname(chaine, sizeof(chaine));
-							printf("%s\n", chaine);
+						while ( fgets (str, HOST_NAME_MAX, fd) != NULL ) {
+							str[strlen(str)-1] = '\0';
+						}
+						
+						if (strlen(str) > 0 && strlen(str) < HOST_NAME_MAX) {
+							sethostname(str, sizeof(str));
+							printf("%s\n", str);
 						}
 						else {
 							fprintf(stderr, "Argument vide ou trop long\n");
 							erreur = 1;
-						}*/
+						}
 					}
 					else {
 						fprintf(stderr, "Il faut être super utilisateur pour modifier le nom d'hôte\n");
 						erreur = 1;
 					}
+					fclose(fd);
 					
 				}
 				else {
