@@ -25,6 +25,8 @@ int EXIT_PROG;
 const char* LISTE_SIGNAUX[NB_SIGNAUX];
 char* REPERTOIRE_SHELL;
 
+pid_t pid_avant_plan;
+
 pid_t PIDS_BG [NB_CMDS_BG_MAX];
 char *CMDS_BG [NB_CMDS_BG_MAX];
 

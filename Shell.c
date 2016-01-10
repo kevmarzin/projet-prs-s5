@@ -20,6 +20,7 @@ const char* LISTE_SIGNAUX[NB_SIGNAUX] = {
 
 char *REPERTOIRE_SHELL;
 char *chaine_cmd_distante = NULL;
+pid_t pid_avant_plan = -1;
 
 extern int yyparse_string (char *);
 
@@ -202,6 +203,13 @@ void free_structures () {
 	}
 }
 
+void handler_interruption (int sig) {
+	if (pid_avant_plan != -1) {
+		kill (pid_avant_plan, SIGTERM);
+		pid_avant_plan = -1;
+	}
+}
+
 
 
       /*----------------------------------------------------------------------------------------.
@@ -246,8 +254,11 @@ void free_structures () {
 int main (int argc, char **argv){
 	interactive_mode = (argc == 1);
 	
+	// Variable permetant de stocker le nombre de caractère d'une commande lancée en mode distant.
 	int taille_cmd_distante = 0;
 	int i;
+	
+	// Initialisation de la constante permetant de connaire le répertoire du Shell, ne doit pas changer au cours du programme
 	REPERTOIRE_SHELL = get_current_dir_name();
 	
 	int retour = EXIT_SUCCESS;
@@ -269,6 +280,13 @@ int main (int argc, char **argv){
 		
 		// Initialisation de l'historique
 		using_history ();
+		
+		struct sigaction sa_int;
+		sa_int.sa_handler = handler_interruption;
+		sa_int.sa_flags = 0; // SA_RESETHAND;
+		sigemptyset(&sa_int.sa_mask);
+		sigaction(SIGINT, &sa_int, NULL);
+		sigaction(SIGQUIT, &sa_int, NULL);
 	}
 	else { // Mode distant
 		i = 1;
@@ -294,7 +312,7 @@ int main (int argc, char **argv){
 
 	while (!EXIT_PROG){
 		if (my_yyparse (chaine_cmd_distante) == 0){/* L'analyse a abouti */
-			afficher_expr (ExpressionAnalysee);
+//			afficher_expr (ExpressionAnalysee);
 			if ((retour_evaluation = evaluer_expr (ExpressionAnalysee)) && !interactive_mode)
 				retour = retour_evaluation;
 			fflush (stdout);

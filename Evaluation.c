@@ -154,6 +154,10 @@ void suppression_zombies () {
 	while (pid_zombie > 0);
 }
 
+void handler (int sig) {
+	
+}
+
 int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 	int ret = 1;
 	if (sont_egales (args[0], "echo"))
@@ -177,12 +181,23 @@ int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 	else { //Commande externe exécutée
 		pid_t fpid;
 		if (cmd_en_bg || (fpid = fork()) == 0) {
+			sigset_t masque;
+			sigemptyset(&masque);
+			sigaddset (&masque, SIGINT);
+			sigaddset (&masque, SIGQUIT);
+			sigprocmask (SIG_SETMASK, &masque, NULL);
+			signal (SIGQUIT, handler);
+			signal (SIGINT, handler);
 			execvp(args[0], args);
 			fprintf (stderr, "%s : commande introuvable\n", args[0]);
 			exit(EXIT_FAILURE);
 		}
 		else {
 			int status;
+			
+			if (!cmd_en_bg)
+				pid_avant_plan = fpid;
+			
 			waitpid(fpid, &status, 0);
 			ret = (WEXITSTATUS(status) != EXIT_FAILURE);
 		}
