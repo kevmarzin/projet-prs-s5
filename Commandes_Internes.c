@@ -1332,6 +1332,9 @@ int cmdInt_exit () {
 	return 1;
 }
 
+/*
+ * Vérifie si une machine est connue dans la liste de machine.
+ */
 int estUneMachineDistante (char *machine) {
 	int it = 0;
 	int machine_trouvee = 0;
@@ -1363,6 +1366,8 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 	int status_fils;
 	
 	int retour_fils = 1;
+	pid_t proc_ssh;
+	pid_t proc_xcat;
 	
 	int tube [2];
 	pipe(tube);
@@ -1377,12 +1382,12 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 			une_seule_machine = 0;
 		}
 		else
-			machine_distante = SHELLS_DISTANTS[it];
+			machine_courante = SHELLS_DISTANTS[it];
 		
-		if (fork() == 0) {
+		if ((proc_xcat = fork()) == 0) {
 			close (tube[1]);
 			dup2(tube[0], STDIN_FILENO);
-			close (tube[0]);
+			//close (tube[0]);
 			
 			char xcat[strlen(REPERTOIRE_SHELL) + strlen("/xcat.sh") + 1];
 			strcpy (xcat, REPERTOIRE_SHELL);
@@ -1391,9 +1396,10 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 			exit (EXIT_FAILURE);
 		}
 		
-		if (fork() == 0) {
+		if ((proc_ssh = fork()) == 0) {
 			char **args_nouvelle_cmd  = InitialiserListeArguments();
 			
+			// Les sorties sont rediriger vers le tube
 			close (tube[0]);
 			dup2(tube[1], STDOUT_FILENO);
 			dup2(tube[1], STDERR_FILENO);
@@ -1420,7 +1426,11 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 		}
 		else {
 			// Attente que la commande se termine.
-			wait(&status_fils);
+			waitpid(proc_ssh, &status_fils, 0);
+			
+			// Une fois que la commande ssh est terminée, on fini la commande sh (affichage)
+			kill (proc_xcat, 9);
+			waitpid(proc_xcat, NULL, 0);
 			
 			// Si aucun fils n'a retourné d'erreur
 			if (retour_fils)
@@ -1434,7 +1444,6 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 	
 	return retour_fils;
 }
-
 
 int cmdInt_remote (char **args) {
 	int erreur = 0;

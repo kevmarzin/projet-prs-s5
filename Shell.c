@@ -6,6 +6,9 @@
 
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
 
 const char* LISTE_SIGNAUX[NB_SIGNAUX] = {	
 	"Aucun signal", "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT",
@@ -16,9 +19,9 @@ const char* LISTE_SIGNAUX[NB_SIGNAUX] = {
 };
 
 char *REPERTOIRE_SHELL;
+char *chaine_cmd_distante = NULL;
 
 extern int yyparse_string (char *);
-
 
 int EXIT_PROG = 0;
 bool interactive_mode = 1;	// par défaut on utilise readline 
@@ -153,6 +156,52 @@ int my_yyparse (char *cmd){
 	}
 }
 
+/*
+ * Libère la mémoire de toutes les structures de données si cette libération n'a pas été faite.
+ */
+void free_structures () {
+	int i = 0;
+	
+	free (REPERTOIRE_SHELL);
+	
+	if (interactive_mode) {
+		i = 0;
+		
+		// Fin de toutes les commandes lancées en fond de tâche
+		while (i < NB_CMDS_BG_MAX && PIDS_BG [i] != -1) {
+			// Termine la commande i
+			kill(PIDS_BG [i], 9);
+			waitpid (PIDS_BG [i], NULL, WNOHANG);
+			
+			// Affichage de la fin
+			printf ("[%d]   Fini\t\t\t%s\n", i + 1, CMDS_BG[i]);
+			
+			// Libération de ma mémoire de la chaine de caractères
+			free (CMDS_BG[i]);
+			CMDS_BG[i] = NULL;
+			
+			// Pid effacé
+			PIDS_BG [i] = -1;
+			
+			// Commande suivante
+			i++;
+		}
+		
+		i = 0;
+		
+		// Libération de la mémoire de tous les noms de machines distantes
+		while (i < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS [i] != NULL) {
+			free (SHELLS_DISTANTS [i]);
+			SHELLS_DISTANTS [i] = NULL;
+			i++;
+		}
+	}
+	else { // Mode distant
+		// Commande complète passé en paramètre
+		free (chaine_cmd_distante);
+	}
+}
+
 
 
       /*----------------------------------------------------------------------------------------.
@@ -196,8 +245,7 @@ int my_yyparse (char *cmd){
 
 int main (int argc, char **argv){
 	interactive_mode = (argc == 1);
-
-	char *chaine_cmd_distante = NULL;
+	
 	int taille_cmd_distante = 0;
 	int i;
 	REPERTOIRE_SHELL = get_current_dir_name();
@@ -258,6 +306,7 @@ int main (int argc, char **argv){
 		EXIT_PROG = !interactive_mode ? 1 : EXIT_PROG;
 	}
 	
-	free (REPERTOIRE_SHELL);
+	free_structures ();
+	
 	return retour;
 }
