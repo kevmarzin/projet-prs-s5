@@ -1400,8 +1400,8 @@ int cmdInt_exit () {
 int estUneMachineDistante (char *machine) {
 	int it = 0;
 	int machine_trouvee = 0;
-	while (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL && !machine_trouvee) {
-		if (sont_egales(machine, SHELLS_DISTANTS[it]))
+	while (it < NB_MACHINES_DISTANTES_MAX && machines_distantes_liees[it] != NULL && !machine_trouvee) {
+		if (sont_egales(machine, machines_distantes_liees[it]))
 			machine_trouvee = 1;
 		else
 			it++;
@@ -1411,7 +1411,7 @@ int estUneMachineDistante (char *machine) {
 
 /*
  * Execute en ssh sur machine_distante fic_distant, avec comme paramètre args_commande.
- * Si machine_distante est NULL, la commande ssh est effectuée sur toute les machines distantes stockées dans SHELLS_DISTANTS
+ * Si machine_distante est NULL, la commande ssh est effectuée sur toute les machines distantes stockées dans machines_distantes_liees
  */
 int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *fic_distant) {
 	int it = 0;
@@ -1419,7 +1419,7 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 	
 	if (machine_distante != NULL){
 		une_seule_machine = 1;
-		it = NB_SHELLS_DISTANTS_MAX;
+		it = NB_MACHINES_DISTANTES_MAX;
 	}
 	
 	char *machine_courante = NULL;
@@ -1434,7 +1434,7 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 	int tube [2];
 	pipe(tube);
 	
-	while (une_seule_machine || (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL)) {
+	while (une_seule_machine || (it < NB_MACHINES_DISTANTES_MAX && machines_distantes_liees[it] != NULL)) {
 		
 		// Machine sur laquelle on doit lancer la commande
 		if (une_seule_machine) {
@@ -1444,7 +1444,7 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 			une_seule_machine = 0;
 		}
 		else
-			machine_courante = SHELLS_DISTANTS[it];
+			machine_courante = machines_distantes_liees[it];
 		
 		if ((proc_xcat = fork()) == 0) {
 			close (tube[1]);
@@ -1529,10 +1529,10 @@ int cmdInt_remote (char **args) {
 				id_arg++;
 				
 				// Positionnement à la fin de la liste de noms de machines distantes
-				it = LongueurListe(SHELLS_DISTANTS);
+				it = LongueurListe(machines_distantes_liees);
 				
 				// Parcours de tous les noms de machines donnés
-				while (args[id_arg] != NULL && !erreur && it < NB_SHELLS_DISTANTS_MAX){
+				while (args[id_arg] != NULL && !erreur && it < NB_MACHINES_DISTANTES_MAX){
 					if (!sont_egales (args[id_arg], "all")) {
 						// Envoie sur la machine distante de l'éxecutable de l'aplication
 						if (fork() == 0) {
@@ -1566,13 +1566,13 @@ int cmdInt_remote (char **args) {
 							wait(&status_fils);
 							
 							if (WEXITSTATUS (status_fils) == EXIT_SUCCESS) {
-								SHELLS_DISTANTS[it] = malloc(strlen(args[id_arg]) + 1);
-								strcpy(SHELLS_DISTANTS[it], args[id_arg]);
+								machines_distantes_liees[it] = malloc(strlen(args[id_arg]) + 1);
+								strcpy(machines_distantes_liees[it], args[id_arg]);
 								
-								printf ("%s ajouté à la liste de machines distantes.\n", SHELLS_DISTANTS[it]);
+								printf ("%s ajouté à la liste de machines distantes.\n", machines_distantes_liees[it]);
 								
-								if (++it < NB_SHELLS_DISTANTS_MAX)
-									SHELLS_DISTANTS[it] = NULL;
+								if (++it < NB_MACHINES_DISTANTES_MAX)
+									machines_distantes_liees[it] = NULL;
 								else
 									printf ("remote : liste remplie, arrêt de la commande. Les machines à partir de %s n'ont pas été ajoutés\n", args[id_arg + 1]);
 							}
@@ -1597,7 +1597,7 @@ int cmdInt_remote (char **args) {
 		}
 		else if (sont_egales(args[id_arg], "remove")){
 			// On se place à la fin de la liste.
-			it = LongueurListe (SHELLS_DISTANTS) - 1;
+			it = LongueurListe (machines_distantes_liees) - 1;
 			
 			// Parcours de la liste.
 			while (it >= 0 && !erreur){
@@ -1610,7 +1610,7 @@ int cmdInt_remote (char **args) {
 					}
 					
 					// Execution de la commande
-					execlp("ssh", "ssh", SHELLS_DISTANTS[it], "rm", fic_distant, NULL);
+					execlp("ssh", "ssh", machines_distantes_liees[it], "rm", fic_distant, NULL);
 					exit (EXIT_FAILURE);
 				}
 				else {
@@ -1618,8 +1618,8 @@ int cmdInt_remote (char **args) {
 					wait(&status_fils);
 					
 					// Machine distante enlevée de la liste même si la suppression du fichier génère une erreur
-					free (SHELLS_DISTANTS[it]);
-					SHELLS_DISTANTS[it] = NULL;
+					free (machines_distantes_liees[it]);
+					machines_distantes_liees[it] = NULL;
 				}
 				it--;
 			}
@@ -1629,8 +1629,8 @@ int cmdInt_remote (char **args) {
 		}
 		else if (sont_egales(args[id_arg], "list")){ // affichage de la liste de machine distante
 			it = 0;
-			while (it < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS[it] != NULL) {
-				printf("%s\n", SHELLS_DISTANTS[it]);
+			while (it < NB_MACHINES_DISTANTES_MAX && machines_distantes_liees[it] != NULL) {
+				printf("%s\n", machines_distantes_liees[it]);
 				it++;
 			}
 		}

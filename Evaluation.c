@@ -140,14 +140,14 @@ void suppression_zombies () {
 	do {
 		pid_zombie = waitpid (-1, NULL, WNOHANG);
 		if (pid_zombie > 0) {
-			int id = id_pid_expr_BG(PIDS_BG, pid_zombie);
+			int id = id_pid_expr_BG(pids_bg, pid_zombie);
 			if (id != -1) {
-				printf ("[%d]   Fini\t\t\t%s\n", id + 1, CMDS_BG[id]);
+				printf ("[%d]   Fini\t\t\t%s\n", id + 1, cmds_bg[id]);
 				
 				// Les structures de données sont vidées
-				free(CMDS_BG[id]);
-				CMDS_BG[id] = NULL;
-				PIDS_BG[id] = -1;
+				free(cmds_bg [id]);
+				cmds_bg [id] = NULL;
+				pids_bg [id] = -1;
 			}
 		}
 	}
@@ -169,7 +169,7 @@ int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 	else if (sont_egales (args[0], "kill"))
 		ret = cmdInt_kill (args + 1);
 	else if (sont_egales (args[0], "exit"))
-		ret = EXIT_PROG = cmdInt_exit ();
+		ret = exit_prog = cmdInt_exit ();
 	else if (sont_egales (args[0], "hostname"))
 		ret = cmdInt_hostname (args + 1);
 	else if (sont_egales (args[0], "remote"))
@@ -252,7 +252,7 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 				ret = evaluer_expr(e->gauche) || evaluer_expr(e->droite);
 				break;
 			case BG: // Tâche en arrière plan (&)
-				idProcBg = id_vide_expr_BG(PIDS_BG);
+				idProcBg = id_vide_expr_BG(pids_bg);
 				
 				if (idProcBg != -1 && (pid_fils = fork()) == 0) {
 					evaluer_expr_bg(e->gauche, 1);
@@ -264,17 +264,17 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 				}
 				else {
 					// Sauvegarde du pid du programme lancé an BG
-					PIDS_BG[idProcBg] = pid_fils;
+					pids_bg[idProcBg] = pid_fils;
 					
 					// Calcul de la taille de la chaîne de caractère de la commandes (avec le caractère de fin)
 					taille_cmd_BG = taille_chaine_expression (e) + 1;
 					
 					// Allocation de la mémoire et initialisation de la chaîne de la cmd
-					CMDS_BG[idProcBg] = malloc (taille_cmd_BG);
-					memset (CMDS_BG[idProcBg], '\0', taille_cmd_BG);
-					construire_chaine_expr (e, CMDS_BG[idProcBg]);
+					cmds_bg[idProcBg] = malloc (taille_cmd_BG);
+					memset (cmds_bg[idProcBg], '\0', taille_cmd_BG);
+					construire_chaine_expr (e, cmds_bg[idProcBg]);
 					
-					printf ("[%d] %d\n", idProcBg + 1, PIDS_BG[idProcBg]);
+					printf ("[%d] %d\n", idProcBg + 1, pids_bg[idProcBg]);
 				}
 				break;
 			case PIPE: // pipe (|)

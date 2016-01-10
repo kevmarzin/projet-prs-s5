@@ -10,7 +10,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-const char* LISTE_SIGNAUX[NB_SIGNAUX] = {	
+const char* LISTE_SIGNAUX[NB_SIGNAUX] = {
 	"Aucun signal", "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT",
 	"SIGBUS", "SIGFPE", "SIGKILL", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGPIPE",
 	"SIGALRM", "SIGTERM", "SIGSTKFLT", "SIGCHLD", "SIGCONT", "SIGSTOP", "SIGTSTP",
@@ -18,13 +18,16 @@ const char* LISTE_SIGNAUX[NB_SIGNAUX] = {
 	"SIGWINCH", "SIGIO", "SIGPWR", "SIGSYS"
 };
 
+int exit_prog = 0;
+
 char *REPERTOIRE_SHELL;
 char *chaine_cmd_distante = NULL;
 pid_t pid_avant_plan = -1;
 
+
+
 extern int yyparse_string (char *);
 
-int EXIT_PROG = 0;
 bool interactive_mode = 1;	// par défaut on utilise readline 
 int status = 0;			// valeur retournée par la dernière commande
 
@@ -169,20 +172,20 @@ void free_structures () {
 		i = 0;
 		
 		// Fin de toutes les commandes lancées en fond de tâche
-		while (i < NB_CMDS_BG_MAX && PIDS_BG [i] != -1) {
+		while (i < NB_CMDS_BG_MAX && pids_bg [i] != -1) {
 			// Termine la commande i
-			kill (PIDS_BG [i], SIGTERM);
-			waitpid (PIDS_BG [i], NULL, WNOHANG);
+			kill (pids_bg [i], SIGTERM);
+			waitpid (pids_bg [i], NULL, WNOHANG);
 			
 			// Affichage de la fin
-			printf ("[%d]   Fini\t\t\t%s\n", i + 1, CMDS_BG[i]);
+			printf ("[%d]   Fini\t\t\t%s\n", i + 1, cmds_bg[i]);
 			
 			// Libération de ma mémoire de la chaine de caractères
-			free (CMDS_BG[i]);
-			CMDS_BG[i] = NULL;
+			free (cmds_bg[i]);
+			cmds_bg[i] = NULL;
 			
 			// Pid effacé
-			PIDS_BG [i] = -1;
+			pids_bg [i] = -1;
 			
 			// Commande suivante
 			i++;
@@ -191,9 +194,9 @@ void free_structures () {
 		i = 0;
 		
 		// Libération de la mémoire de tous les noms de machines distantes
-		while (i < NB_SHELLS_DISTANTS_MAX && SHELLS_DISTANTS [i] != NULL) {
-			free (SHELLS_DISTANTS [i]);
-			SHELLS_DISTANTS [i] = NULL;
+		while (i < NB_MACHINES_DISTANTES_MAX && machines_distantes_liees [i] != NULL) {
+			free (machines_distantes_liees [i]);
+			machines_distantes_liees [i] = NULL;
 			i++;
 		}
 	}
@@ -203,9 +206,16 @@ void free_structures () {
 	}
 }
 
+/*
+ * Handler du signal SIGINT, SIGQUIT
+ */
 void handler_interruption (int sig) {
+	// S'il y a le processus d'une commande en avant plan
 	if (pid_avant_plan != -1) {
+		// Terminaison du processus appelant
 		kill (pid_avant_plan, SIGTERM);
+		
+		// Variable réinitialisée
 		pid_avant_plan = -1;
 	}
 }
@@ -267,20 +277,21 @@ int main (int argc, char **argv){
 	// faire en sorte qu'interactive_mode = 0 lorsque le shell est distant 
 	if (interactive_mode) { // Mode interactif
 		// Initialisation du tableau qui va stocker les pid des processus lancés en tâche de fond
-		memset (PIDS_BG, -1, NB_CMDS_BG_MAX);
+		memset (pids_bg, -1, NB_CMDS_BG_MAX);
 		
 		// Initialisation du tableau qui va stocker les commandes sous forme de chaîne de caractères des processus
 		// lancées en tâche de fond
 		for (i = 0; i < NB_CMDS_BG_MAX; i++)
-			CMDS_BG[i] = NULL;
+			cmds_bg[i] = NULL;
 		
 		// Initialisation du tableau qui va stocker les noms des machines distantes
-		for (i = 0; i < NB_SHELLS_DISTANTS_MAX; i++)
-			SHELLS_DISTANTS[i] = NULL;
+		for (i = 0; i < NB_MACHINES_DISTANTES_MAX; i++)
+			machines_distantes_liees[i] = NULL;
 		
 		// Initialisation de l'historique
 		using_history ();
 		
+		// Mise en place d'un traitant de signal pour le SIGINT, SIGQUIT
 		struct sigaction sa_int;
 		sa_int.sa_handler = handler_interruption;
 		sa_int.sa_flags = 0; // SA_RESETHAND;
@@ -307,10 +318,9 @@ int main (int argc, char **argv){
 				strcat (chaine_cmd_distante, " ");
 			i++;
 		}
-			
 	}
 
-	while (!EXIT_PROG){
+	while (!exit_prog){
 		if (my_yyparse (chaine_cmd_distante) == 0){/* L'analyse a abouti */
 //			afficher_expr (ExpressionAnalysee);
 			if ((retour_evaluation = evaluer_expr (ExpressionAnalysee)) && !interactive_mode)
@@ -321,7 +331,7 @@ int main (int argc, char **argv){
 		else {/* L'analyse de la ligne de commande a donné une erreur */}
 		
 		// On quitte la boucle lorsque l'on est en mode distant
-		EXIT_PROG = !interactive_mode ? 1 : EXIT_PROG;
+		exit_prog = !interactive_mode ? 1 : exit_prog;
 	}
 	
 	free_structures ();

@@ -12,25 +12,38 @@
 
 #define NB_SIGNAUX 32
 #define NB_CMDS_BG_MAX 100
-#define NB_SHELLS_DISTANTS_MAX 15
+#define NB_MACHINES_DISTANTES_MAX 15
 
 /*
- * 
+ * Variable permettant de quitter le programme quand elle est égale à 1.
  */
-int EXIT_PROG;
+int exit_prog;
 
 /*
- * 
+ * Tableaux stockant les signaux. Constantes.
  */
 const char* LISTE_SIGNAUX[NB_SIGNAUX];
+
+/*
+ * Stocke le répertoire de l'exécutable du shell. Initialisée dans le main mais ne change pas au cours du programme.
+ */
 char* REPERTOIRE_SHELL;
 
+/*
+ * Stocke le pid du processus de la commande (externe) lancée en avant plan. -1 lorsqu'il n'y a pas processus en avant plan.
+ */
 pid_t pid_avant_plan;
 
-pid_t PIDS_BG [NB_CMDS_BG_MAX];
-char *CMDS_BG [NB_CMDS_BG_MAX];
+/*
+ * Tableaux stockant les pid des processus des commandes lancées en BG, ainsi que les chaine de caractères des commandes.
+ */
+pid_t pids_bg [NB_CMDS_BG_MAX];
+char *cmds_bg [NB_CMDS_BG_MAX];
 
-char *SHELLS_DISTANTS [NB_SHELLS_DISTANTS_MAX];
+/*
+ * Tableau permettant de stocker les noms des machines distantes ajouter grâce au remote.
+ */
+char *machines_distantes_liees [NB_MACHINES_DISTANTES_MAX];
 
 char *get_current_dir_name(void);
 
