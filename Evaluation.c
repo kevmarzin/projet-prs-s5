@@ -172,6 +172,8 @@ int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 		ret = cmdInt_remote (args + 1);
 	else if (sont_egales (args[0], "pwd"))
 		ret = cmdInt_pwd(args + 1);
+	else if (sont_egales (args[0], "cd"))
+		ret = cmdInt_cd (args + 1);
 	else { //Commande externe exécutée
 		pid_t fpid;
 		if (cmd_en_bg || (fpid = fork()) == 0) {

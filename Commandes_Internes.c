@@ -655,6 +655,25 @@ int cmdInt_pwd(char **args) {
 }
 
 /*
+ * Commande cd.
+ */
+int cmdInt_cd(char **args) {
+	int erreur = 0;
+	
+	if (args[0] != NULL) {
+		if (chdir(args[0]) == -1) {
+			fprintf(stderr, "cd : %s : n'est pas un dossier\n", args[0]);
+			erreur = 1;
+		}
+	}
+	else {
+		chdir(getenv("HOME"));
+	}
+	
+	return !erreur;
+}
+
+/*
  * Commande history.
  */
 int cmdInt_history (char **args) {
@@ -915,6 +934,9 @@ int cmdInt_history (char **args) {
 	return !erreur;
 }
 
+/*
+ * Commande kill.
+ */
 int cmdInt_kill (char **args){
 	int id_arg = 0;
 	int erreur = 0;
@@ -927,13 +949,15 @@ int cmdInt_kill (char **args){
 	while (args[id_arg] != NULL && !erreur) {
 		if (id_arg == 1 || id_arg == 2) {
 			if (sont_egales(args[id_arg], "-1")) {
-				fprintf(stderr, "On ne peut pas tuer tous les processus\n");
+				fprintf(stderr, "kill : on ne peut pas tuer tous les processus\n");
 				erreur = 1;
 			}
 		}
 		
+		// Le premier argument est un PID de processus
 		if (args[id_arg][0] != '-') {
 			id_liste_proc = id_arg;
+			// Parcours de la liste de PID donnée (> 1), et on envoie SIGTERM à tous
 			while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc]) && erreur_kill != -1) {
 				erreur_kill = kill(atoi(args[id_liste_proc]), 15); //SIGTERM par défaut (15)
 				if (erreur_kill != -1)
@@ -941,16 +965,20 @@ int cmdInt_kill (char **args){
 			}
 			if (args[id_liste_proc] != NULL && (!estNombre(args[id_liste_proc]) 
 																|| erreur_kill == -1)) {
-				fprintf(stderr, "Procesus inexistant, PID invalide\n");
+				fprintf(stderr, "kill : processus inexistant, PID invalide\n");
 				erreur = 1;
 			}
 			id_arg = id_liste_proc + 1;
 		}
+		// Si le premier argument est une option
 		else {
+			// Soit l'option de spécification d'un signal à envoyer
 			if (sont_egales(args[id_arg], "-s") || sont_egales(args[id_arg], "--signal")){
 				if (args[++id_arg] != NULL) {
+					// Traitement différent si c'est un numéro de signal, on récupère le num puis on l'envoie aux processus
 					if (estNombre(args[id_arg])) {
 						num_signal = atoi(args[id_arg]);
+						// Signal valide
 						if (0 < num_signal && num_signal < 32) {
 							id_liste_proc = ++id_arg;
 							while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
@@ -971,14 +999,17 @@ int cmdInt_kill (char **args){
 							erreur = 1;
 						}
 					}
+					// Si c'est le nom du signal et non le num
 					else {
 						trouve = 0;
 						id_liste_signaux = 0;
+						// On vérifie qu'il soit valide
 						while (id_liste_signaux < 32 && !trouve) {
 							if (sont_egales(LISTE_SIGNAUX[id_liste_signaux], args[id_arg]) ||
 							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg])) {
 								trouve = 1;
 								id_liste_proc = ++id_arg;
+								// Puis on l'envoie à tous les processus donnés
 								while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
 									erreur_kill = kill(atoi(args[id_liste_proc]), id_liste_signaux);
 									if (erreur_kill != -1)
@@ -1007,20 +1038,27 @@ int cmdInt_kill (char **args){
 					erreur = 1;
 				}
 			}
+			// Liste des signaux (soit tous soit un spécifié)
 			else if (sont_egales(args[id_arg], "-l") || sont_egales(args[id_arg], "--list")){
 				int id_arg_liste_signaux = ++id_arg;
+				// Si aucun signal n'est donné, on donne toute la liste
 				if (args[id_arg_liste_signaux] == NULL) {
 					int it;
 					for (it = 1; it < 32; it++)
 						printf("%d) %s\n", it, LISTE_SIGNAUX[it]);
 				}
+				// Sinon on va chercher dans la liste des signaux le signal voulu
+				// Toujours avec 2 traitements différents ; num ou nom
 				while (args[id_arg_liste_signaux] != NULL) {
+					// Num signal
 					if (estNombre(args[id_arg_liste_signaux]) && (0 < atoi(args[id_arg_liste_signaux]) 
 															&& atoi(args[id_arg_liste_signaux]) < 32))
 						printf("%s\n", LISTE_SIGNAUX[atoi(args[id_arg_liste_signaux])] + 3);
+					// Nom signal
 					else if (!estNombre(args[id_arg_liste_signaux])) {
 						trouve = 0;
 						id_liste_signaux = 0;
+						// Parcours de la liste de signaux pour trouver le signal demandé
 						while (id_liste_signaux < 32 && !trouve) {
 							if (sont_egales(LISTE_SIGNAUX[id_liste_signaux], args[id_arg_liste_signaux]) ||
 							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg_liste_signaux])) {
@@ -1039,11 +1077,14 @@ int cmdInt_kill (char **args){
 				}
 				id_arg = id_arg_liste_signaux;
 			}
+			// Même option que -s sauf que 's' est remplacé par un signal (num ou nom)
 			else if (args[id_arg][0] == '-'){
+				// Num signal
 				if (estNombre(args[id_arg] + 1)) {
 					num_signal = atoi(args[id_arg] + 1);
 					if (0 < num_signal && num_signal < 32) {
 						id_liste_proc = ++id_arg;
+						// Envoi du signal à tous les processus donnés
 						while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
 							erreur_kill = kill(atoi(args[id_liste_proc]), num_signal);
 							if (erreur_kill != -1)
@@ -1062,6 +1103,7 @@ int cmdInt_kill (char **args){
 						erreur = 1;
 					}
 				}
+				// Nom signal
 				else {
 					trouve = 0;
 					id_liste_signaux = 0;
@@ -1070,6 +1112,7 @@ int cmdInt_kill (char **args){
 							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg] + 1)) {
 							trouve = 1;
 							id_liste_proc = ++id_arg;
+						// Envoi du signal à tous les processus données
 							while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
 								erreur_kill = kill(atoi(args[id_liste_proc]), id_liste_signaux);
 								if (erreur_kill != -1)
@@ -1097,6 +1140,9 @@ int cmdInt_kill (char **args){
 	return !erreur;
 }
 
+/*
+ * Commande hostname.
+ */
 int cmdInt_hostname (char **args) {
 	int erreur = 0;
 	int stop = 0;
@@ -1105,11 +1151,14 @@ int cmdInt_hostname (char **args) {
 	char *domainname;
 	char *nisdomainname;//[256];
 	
+	//Traitement du changement de nom d'hôte
 	while (args[id_arg] != NULL && !stop) {
+		// Version hostname
 		if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
 			//Afficher la version et ne pas prendre en compte n'importe quel autre arg
 			stop = 1;
 		}
+		// Affichage aide (usage commande)
 		else if (sont_egales(args[id_arg], "-h") || sont_egales(args[id_arg], "--help")) {
 			printf("Usage : \n");
 			printf("hostname [-b] {hostname|-F fichier}     -      Changer le nom d'hôte (depuis un fichier)\n");
@@ -1122,6 +1171,8 @@ int cmdInt_hostname (char **args) {
 			id_arg++;
 	}
 	
+	// Traitement de l'affichage du nom d'hôte
+	// Prise en compte seulement de la dernière option renseignée
 	id_arg = 0;
 	while (args[id_arg] != NULL && !sont_egales(args[id_arg], "-V")
 								&& !sont_egales(args[id_arg], "-h")
@@ -1134,6 +1185,7 @@ int cmdInt_hostname (char **args) {
 								&& args[id_arg][0] == '-' && !erreur){
 		if (strlen(args[id_arg]) == 1)
 			erreur = 1;
+		// Placement sur le dernier argument de la liste d'arguments
 		if (args[id_arg + 1] == NULL) {
 			if (sont_egales(args[id_arg], "-a") || sont_egales(args[id_arg], "--alias")) {
 				// Je ne sais pas à quoi ça correspond
@@ -1145,6 +1197,7 @@ int cmdInt_hostname (char **args) {
 			else if (sont_egales(args[id_arg], "-d") || sont_egales(args[id_arg], "--domain")) {
 				struct hostent *hp;
 
+				// Récupération du nom d'hôte et du domaine
 				gethostname(hostname, sizeof(hostname)); 
 				hp = gethostbyname(hostname);
 				domainname = strchr(hp->h_name, '.');
@@ -1162,17 +1215,20 @@ int cmdInt_hostname (char **args) {
 				int res;
 			
 				gethostname(hostname, sizeof(hostname));
-
+				
+				// Initialisation de hints (addrinfo)
 				memset(&hints, 0, sizeof hints);
 				hints.ai_family = AF_UNSPEC;
 				hints.ai_socktype = SOCK_STREAM;
 				hints.ai_flags = AI_CANONNAME;
 
+				// Infos
 				if ((getaddrinfo(hostname, "http", &hints, &info)) != 0) {
 					fprintf(stderr, "Erreur dans la récupération");
 					erreur = 1;
 				}
-
+				
+				// Affichage full qualifed domain name
 				for(p = info; p != NULL; p = p->ai_next) {
 					printf("%s\n", p->ai_canonname);
 				}
@@ -1214,7 +1270,7 @@ int cmdInt_hostname (char **args) {
 							ipver = '6';
 						}
 
-						// Conversion de l'adresse IP en une chaîne de caractères
+						// IP -> char *
 						inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
 						printf("%s\n", ipstr);
 
@@ -1258,22 +1314,28 @@ int cmdInt_hostname (char **args) {
 		id_arg++;
 	}
 	
+	// Traitement de la modification du nom d'hôte
 	id_arg = 0;
 	if (args[id_arg] != NULL && (sont_egales(args[id_arg], "-b")
 									|| sont_egales(args[id_arg], "--boot")
 									|| sont_egales(args[id_arg], "-F")
 									|| sont_egales(args[id_arg], "--file")
 								    || args[id_arg][0] != '-')) {
+		// Fichier
 		if (sont_egales(args[id_arg], "-F") || sont_egales(args[id_arg], "--file")) {
 			if (args[++id_arg] != NULL) {
+				// Ouverture du fichier
 				FILE *fd = fopen(args[id_arg], "r");
 				if (fd != NULL) {
 					char *str;
+					// Si l'utilisateur est root, il peut
 					if (estRoot(NULL)) {
 						while ( fgets (str, HOST_NAME_MAX, fd) != NULL ) {
+							// Récupération du nom dans le fichier
 							str[strlen(str)-1] = '\0';
 						}
 						
+						// Nom valide -> modification
 						if (strlen(str) > 0 && strlen(str) < HOST_NAME_MAX) {
 							sethostname(str, sizeof(str));
 							printf("%s\n", str);
