@@ -23,6 +23,11 @@ extern int cmdInt_echo (char **);
 extern int cmdInt_pwd (char **);
 
 /*
+ * Commande cd.
+ */
+extern int cmdInt_cd(char **args);
+
+/*
  * Commande history.
  */
 extern int cmdInt_history (char **);

@@ -655,6 +655,25 @@ int cmdInt_pwd(char **args) {
 }
 
 /*
+ * Commande cd.
+ */
+int cmdInt_cd(char **args) {
+	int erreur = 0;
+	
+	if (args[0] != NULL) {
+		if (chdir(args[0]) == -1) {
+			fprintf(stderr, "cd : %s : n'est pas un dossier\n", args[0]);
+			erreur = 1;
+		}
+	}
+	else {
+		chdir(getenv("HOME"));
+	}
+	
+	return !erreur;
+}
+
+/*
  * Commande history.
  */
 int cmdInt_history (char **args) {
@@ -927,13 +946,15 @@ int cmdInt_kill (char **args){
 	while (args[id_arg] != NULL && !erreur) {
 		if (id_arg == 1 || id_arg == 2) {
 			if (sont_egales(args[id_arg], "-1")) {
-				fprintf(stderr, "On ne peut pas tuer tous les processus\n");
+				fprintf(stderr, "kill : on ne peut pas tuer tous les processus\n");
 				erreur = 1;
 			}
 		}
 		
+		// Le premier argument est un PID de processus
 		if (args[id_arg][0] != '-') {
 			id_liste_proc = id_arg;
+			// Parcours de la liste de PID donnée (> 1), et on envoie SIGTERM à tous
 			while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc]) && erreur_kill != -1) {
 				erreur_kill = kill(atoi(args[id_liste_proc]), 15); //SIGTERM par défaut (15)
 				if (erreur_kill != -1)
@@ -941,16 +962,20 @@ int cmdInt_kill (char **args){
 			}
 			if (args[id_liste_proc] != NULL && (!estNombre(args[id_liste_proc]) 
 																|| erreur_kill == -1)) {
-				fprintf(stderr, "Procesus inexistant, PID invalide\n");
+				fprintf(stderr, "kill : processus inexistant, PID invalide\n");
 				erreur = 1;
 			}
 			id_arg = id_liste_proc + 1;
 		}
+		// Si le premier argument est une option
 		else {
+			// Soit l'option de spécification d'un signal à envoyer
 			if (sont_egales(args[id_arg], "-s") || sont_egales(args[id_arg], "--signal")){
 				if (args[++id_arg] != NULL) {
+					// Traitement différent si c'est un numéro de signal, on récupère le num puis on l'envoie aux processus
 					if (estNombre(args[id_arg])) {
 						num_signal = atoi(args[id_arg]);
+						// Signal valide
 						if (0 < num_signal && num_signal < 32) {
 							id_liste_proc = ++id_arg;
 							while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
@@ -971,14 +996,17 @@ int cmdInt_kill (char **args){
 							erreur = 1;
 						}
 					}
+					// Si c'est le nom du signal et non le num
 					else {
 						trouve = 0;
 						id_liste_signaux = 0;
+						// On vérifie qu'il soit valide
 						while (id_liste_signaux < 32 && !trouve) {
 							if (sont_egales(LISTE_SIGNAUX[id_liste_signaux], args[id_arg]) ||
 							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg])) {
 								trouve = 1;
 								id_liste_proc = ++id_arg;
+								// Puis on l'envoie à tous les processus donnés
 								while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
 									erreur_kill = kill(atoi(args[id_liste_proc]), id_liste_signaux);
 									if (erreur_kill != -1)
@@ -1007,20 +1035,27 @@ int cmdInt_kill (char **args){
 					erreur = 1;
 				}
 			}
+			// Liste des signaux (soit tous soit un spécifié)
 			else if (sont_egales(args[id_arg], "-l") || sont_egales(args[id_arg], "--list")){
 				int id_arg_liste_signaux = ++id_arg;
+				// Si aucun signal n'est donné, on donne toute la liste
 				if (args[id_arg_liste_signaux] == NULL) {
 					int it;
 					for (it = 1; it < 32; it++)
 						printf("%d) %s\n", it, LISTE_SIGNAUX[it]);
 				}
+				// Sinon on va chercher dans la liste des signaux le signal voulu
+				// Toujours avec 2 traitements différents ; num ou nom
 				while (args[id_arg_liste_signaux] != NULL) {
+					// Num signal
 					if (estNombre(args[id_arg_liste_signaux]) && (0 < atoi(args[id_arg_liste_signaux]) 
 															&& atoi(args[id_arg_liste_signaux]) < 32))
 						printf("%s\n", LISTE_SIGNAUX[atoi(args[id_arg_liste_signaux])] + 3);
+					// Nom signal
 					else if (!estNombre(args[id_arg_liste_signaux])) {
 						trouve = 0;
 						id_liste_signaux = 0;
+						// Parcours de la liste de signaux pour trouver le signal demandé
 						while (id_liste_signaux < 32 && !trouve) {
 							if (sont_egales(LISTE_SIGNAUX[id_liste_signaux], args[id_arg_liste_signaux]) ||
 							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg_liste_signaux])) {
@@ -1039,11 +1074,14 @@ int cmdInt_kill (char **args){
 				}
 				id_arg = id_arg_liste_signaux;
 			}
+			// Même option que -s sauf que 's' est remplacé par un signal (num ou nom)
 			else if (args[id_arg][0] == '-'){
+				// Num signal
 				if (estNombre(args[id_arg] + 1)) {
 					num_signal = atoi(args[id_arg] + 1);
 					if (0 < num_signal && num_signal < 32) {
 						id_liste_proc = ++id_arg;
+						// Envoi du signal à tous les processus donnés
 						while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
 							erreur_kill = kill(atoi(args[id_liste_proc]), num_signal);
 							if (erreur_kill != -1)
@@ -1062,6 +1100,7 @@ int cmdInt_kill (char **args){
 						erreur = 1;
 					}
 				}
+				// Nom signal
 				else {
 					trouve = 0;
 					id_liste_signaux = 0;
@@ -1070,6 +1109,7 @@ int cmdInt_kill (char **args){
 							sont_egales(LISTE_SIGNAUX[id_liste_signaux] + 3, args[id_arg] + 1)) {
 							trouve = 1;
 							id_liste_proc = ++id_arg;
+						// Envoi du signal à tous les processus données
 							while (args[id_liste_proc] != NULL && estNombre(args[id_liste_proc])  && erreur_kill != -1) {
 								erreur_kill = kill(atoi(args[id_liste_proc]), id_liste_signaux);
 								if (erreur_kill != -1)
