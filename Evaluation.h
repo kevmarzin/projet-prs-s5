@@ -3,7 +3,7 @@
 
 #include "Shell.h"
 
-extern int evaluer_expr_simple (char **args);
-extern int evaluer_expr (Expression *e);
+extern int evaluer_expr_simple (char **);
+extern int evaluer_expr (Expression *);
 
 #endif

@@ -135,6 +135,25 @@ int id_pid_expr_BG(pid_t tab_pid[], pid_t pid){
 	return i < NB_CMDS_BG_MAX ? i : -1;
 }
 
+void suppression_zombies () {
+	pid_t pid_zombie;
+	do {
+		pid_zombie = waitpid (-1, NULL, WNOHANG);
+		if (pid_zombie > 0) {
+			int id = id_pid_expr_BG(PIDS_BG, pid_zombie);
+			if (id != -1) {
+				printf ("[%d]   Fini\t\t\t%s\n", id + 1, CMDS_BG[id]);
+				
+				// Les structures de données sont vidées
+				free(CMDS_BG[id]);
+				CMDS_BG[id] = NULL;
+				PIDS_BG[id] = -1;
+			}
+		}
+	}
+	while (pid_zombie > 0);
+}
+
 int evaluer_expr_simple (char **args){
 	int ret = 1;
 	if (sont_egales (args[0], "echo"))
@@ -155,7 +174,7 @@ int evaluer_expr_simple (char **args){
 		ret = cmdInt_pwd(args + 1);
 	else { //Commande externe exécutée
 		pid_t fpid;
-		if ((fpid = fork()) == 0) { /* Commande extern */
+		if ((fpid = fork()) == 0) { /* Commande externe */
 			execvp(args[0], args);
 			fprintf (stderr, "%s : commande introuvable\n", args[0]);
 			exit(EXIT_FAILURE);
@@ -186,27 +205,12 @@ int evaluer_expr (Expression *e){
 	int idProcBg;
 	pid_t pid_fils;
 	
-	//Suppression des processus zombies lancés en BG (seulement dans le mode intéractif
-	if (interactive_mode) {
-		pid_t pid_zombie;
-		do {
-			pid_zombie = waitpid (-1, NULL, WNOHANG);
-			if (pid_zombie > 0) {
-				int id = id_pid_expr_BG(PIDS_BG, pid_zombie);
-				if (id != -1) {
-					printf ("[%d]   Fini\t\t\t%s\n", id + 1, CMDS_BG[id]);
-					
-					// Les structures de données sont vidées
-					free(CMDS_BG[id]);
-					CMDS_BG[id] = NULL;
-					PIDS_BG[id] = -1;
-				}
-			}
-		}
-		while (pid_zombie > 0);
-	}
-	
 	if (interactive_mode || e->type == SIMPLE || e->type == VIDE) {
+		//Suppression des processus zombies lancés en BG (seulement dans le mode intéractif)
+		if (interactive_mode) {
+			suppression_zombies ();
+		}
+		
 		switch (e->type){
 			case VIDE: // Commande vide
 				break;
@@ -241,12 +245,10 @@ int evaluer_expr (Expression *e){
 					// Sauvegarde du pid du programme lancé an BG
 					PIDS_BG[idProcBg] = pid_fils;
 					
-					// Sauvegarde des arguments de la commande
-					
 					// Calcul de la taille de la chaîne de caractère de la commandes (avec le caractère de fin)
 					taille_cmd_BG = taille_chaine_expression (e) + 1;
 					
-					// Allocation de la mémoire et initialisation de la chaîne
+					// Allocation de la mémoire et initialisation de la chaîne de la cmd
 					CMDS_BG[idProcBg] = malloc (taille_cmd_BG);
 					memset (CMDS_BG[idProcBg], '\0', taille_cmd_BG);
 					construire_chaine_expr (e, CMDS_BG[idProcBg]);
@@ -378,11 +380,22 @@ int evaluer_expr (Expression *e){
 				}
 				break;
 			case SOUS_SHELL:
+				if ((pid_fils = fork ()) == 0) {
+					exit (evaluer_expr (e->gauche) != 1);
+				}
+				else {
+					waitpid (pid_fils, &status, 0);
+					ret = WEXITSTATUS(status) == EXIT_SUCCESS;
+				}
 				break;
 			default:
 				ret = 0;
 				fprintf (stderr, "fonctionnalité non implémentée\n");
 				break;
+		}
+		//Suppression des processus zombies lancés en BG (seulement dans le mode intéractif)
+		if (interactive_mode) {
+			suppression_zombies ();
 		}
 	}
 	else {
@@ -391,4 +404,3 @@ int evaluer_expr (Expression *e){
 	}
 	return ret;
 }
-

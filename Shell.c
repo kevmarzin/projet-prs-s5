@@ -170,7 +170,7 @@ void free_structures () {
 		// Fin de toutes les commandes lancées en fond de tâche
 		while (i < NB_CMDS_BG_MAX && PIDS_BG [i] != -1) {
 			// Termine la commande i
-			kill(PIDS_BG [i], 9);
+			kill (PIDS_BG [i], SIGTERM);
 			waitpid (PIDS_BG [i], NULL, WNOHANG);
 			
 			// Affichage de la fin
