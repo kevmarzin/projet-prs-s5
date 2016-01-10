@@ -934,6 +934,9 @@ int cmdInt_history (char **args) {
 	return !erreur;
 }
 
+/*
+ * Commande kill.
+ */
 int cmdInt_kill (char **args){
 	int id_arg = 0;
 	int erreur = 0;
@@ -1137,6 +1140,9 @@ int cmdInt_kill (char **args){
 	return !erreur;
 }
 
+/*
+ * Commande hostname.
+ */
 int cmdInt_hostname (char **args) {
 	int erreur = 0;
 	int stop = 0;
@@ -1145,11 +1151,14 @@ int cmdInt_hostname (char **args) {
 	char *domainname;
 	char *nisdomainname;//[256];
 	
+	//Traitement du changement de nom d'hôte
 	while (args[id_arg] != NULL && !stop) {
+		// Version hostname
 		if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
 			//Afficher la version et ne pas prendre en compte n'importe quel autre arg
 			stop = 1;
 		}
+		// Affichage aide (usage commande)
 		else if (sont_egales(args[id_arg], "-h") || sont_egales(args[id_arg], "--help")) {
 			printf("Usage : \n");
 			printf("hostname [-b] {hostname|-F fichier}     -      Changer le nom d'hôte (depuis un fichier)\n");
@@ -1162,6 +1171,8 @@ int cmdInt_hostname (char **args) {
 			id_arg++;
 	}
 	
+	// Traitement de l'affichage du nom d'hôte
+	// Prise en compte seulement de la dernière option renseignée
 	id_arg = 0;
 	while (args[id_arg] != NULL && !sont_egales(args[id_arg], "-V")
 								&& !sont_egales(args[id_arg], "-h")
@@ -1174,6 +1185,7 @@ int cmdInt_hostname (char **args) {
 								&& args[id_arg][0] == '-' && !erreur){
 		if (strlen(args[id_arg]) == 1)
 			erreur = 1;
+		// Placement sur le dernier argument de la liste d'arguments
 		if (args[id_arg + 1] == NULL) {
 			if (sont_egales(args[id_arg], "-a") || sont_egales(args[id_arg], "--alias")) {
 				// Je ne sais pas à quoi ça correspond
@@ -1185,6 +1197,7 @@ int cmdInt_hostname (char **args) {
 			else if (sont_egales(args[id_arg], "-d") || sont_egales(args[id_arg], "--domain")) {
 				struct hostent *hp;
 
+				// Récupération du nom d'hôte et du domaine
 				gethostname(hostname, sizeof(hostname)); 
 				hp = gethostbyname(hostname);
 				domainname = strchr(hp->h_name, '.');
@@ -1202,17 +1215,20 @@ int cmdInt_hostname (char **args) {
 				int res;
 			
 				gethostname(hostname, sizeof(hostname));
-
+				
+				// Initialisation de hints (addrinfo)
 				memset(&hints, 0, sizeof hints);
 				hints.ai_family = AF_UNSPEC;
 				hints.ai_socktype = SOCK_STREAM;
 				hints.ai_flags = AI_CANONNAME;
 
+				// Infos
 				if ((getaddrinfo(hostname, "http", &hints, &info)) != 0) {
 					fprintf(stderr, "Erreur dans la récupération");
 					erreur = 1;
 				}
-
+				
+				// Affichage full qualifed domain name
 				for(p = info; p != NULL; p = p->ai_next) {
 					printf("%s\n", p->ai_canonname);
 				}
@@ -1254,7 +1270,7 @@ int cmdInt_hostname (char **args) {
 							ipver = '6';
 						}
 
-						// Conversion de l'adresse IP en une chaîne de caractères
+						// IP -> char *
 						inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
 						printf("%s\n", ipstr);
 
@@ -1298,22 +1314,28 @@ int cmdInt_hostname (char **args) {
 		id_arg++;
 	}
 	
+	// Traitement de la modification du nom d'hôte
 	id_arg = 0;
 	if (args[id_arg] != NULL && (sont_egales(args[id_arg], "-b")
 									|| sont_egales(args[id_arg], "--boot")
 									|| sont_egales(args[id_arg], "-F")
 									|| sont_egales(args[id_arg], "--file")
 								    || args[id_arg][0] != '-')) {
+		// Fichier
 		if (sont_egales(args[id_arg], "-F") || sont_egales(args[id_arg], "--file")) {
 			if (args[++id_arg] != NULL) {
+				// Ouverture du fichier
 				FILE *fd = fopen(args[id_arg], "r");
 				if (fd != NULL) {
 					char *str;
+					// Si l'utilisateur est root, il peut
 					if (estRoot(NULL)) {
 						while ( fgets (str, HOST_NAME_MAX, fd) != NULL ) {
+							// Récupération du nom dans le fichier
 							str[strlen(str)-1] = '\0';
 						}
 						
+						// Nom valide -> modification
 						if (strlen(str) > 0 && strlen(str) < HOST_NAME_MAX) {
 							sethostname(str, sizeof(str));
 							printf("%s\n", str);
