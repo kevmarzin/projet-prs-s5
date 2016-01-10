@@ -154,7 +154,7 @@ void suppression_zombies () {
 	while (pid_zombie > 0);
 }
 
-int evaluer_expr_simple (char **args){
+int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 	int ret = 1;
 	if (sont_egales (args[0], "echo"))
 		ret = cmdInt_echo (args + 1);
@@ -174,7 +174,7 @@ int evaluer_expr_simple (char **args){
 		ret = cmdInt_pwd(args + 1);
 	else { //Commande externe exécutée
 		pid_t fpid;
-		if ((fpid = fork()) == 0) { /* Commande externe */
+		if (cmd_en_bg || (fpid = fork()) == 0) {
 			execvp(args[0], args);
 			fprintf (stderr, "%s : commande introuvable\n", args[0]);
 			exit(EXIT_FAILURE);
@@ -188,7 +188,11 @@ int evaluer_expr_simple (char **args){
 	return ret;
 }
 
-int evaluer_expr (Expression *e){
+int evaluer_expr_simple (char **args){
+	return evaluer_expr_simple_bg (args, 0);
+}
+
+int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 	int ret = 1;
 	
 	int tube[2];
@@ -215,7 +219,7 @@ int evaluer_expr (Expression *e){
 			case VIDE: // Commande vide
 				break;
 			case SIMPLE: // Commande simple et ses arguments
-				ret = evaluer_expr_simple (e->arguments);
+				ret = evaluer_expr_simple_bg (e->arguments, cmd_en_bg);
 				break;
 			case SEQUENCE: // Séquence d'instruction (;)
 				ret = evaluer_expr (e->gauche);
@@ -234,7 +238,7 @@ int evaluer_expr (Expression *e){
 				idProcBg = id_vide_expr_BG(PIDS_BG);
 				
 				if (idProcBg != -1 && (pid_fils = fork()) == 0) {
-					evaluer_expr(e->gauche);
+					evaluer_expr_bg(e->gauche, 1);
 					exit (0);
 				}
 				else if (idProcBg == -1){
@@ -403,4 +407,8 @@ int evaluer_expr (Expression *e){
 		fprintf (stderr, "fonctionnalité non implémentée\n");
 	}
 	return ret;
+}
+
+int evaluer_expr (Expression *e) {
+	return evaluer_expr_bg (e, 0);
 }
