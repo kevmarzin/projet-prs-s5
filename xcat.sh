@@ -4,12 +4,9 @@
 FIFO=$(mktemp -u)
 mkfifo $FIFO
 
-
-
-
 # first reader
 xterm -e "cat < $FIFO ; cat" &
-# trap "kill $!"
+# trap "kill $!" 0
 
 # second writer
 cat > $FIFO

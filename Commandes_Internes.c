@@ -1434,9 +1434,10 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 	pid_t proc_xcat;
 	
 	int tube [2];
-	pipe(tube);
+	
 	
 	while (une_seule_machine || (it < NB_MACHINES_DISTANTES_MAX && machines_distantes_liees[it] != NULL)) {
+		pipe(tube);
 		
 		// Machine sur laquelle on doit lancer la commande
 		if (une_seule_machine) {
@@ -1451,7 +1452,7 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 		if ((proc_xcat = fork()) == 0) {
 			close (tube[1]);
 			dup2(tube[0], STDIN_FILENO);
-			//close (tube[0]);
+			close (tube[0]);
 			
 			char xcat[strlen(REPERTOIRE_SHELL) + strlen("/xcat.sh") + 1];
 			strcpy (xcat, REPERTOIRE_SHELL);
@@ -1460,16 +1461,20 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 			exit (EXIT_FAILURE);
 		}
 		
-		if ((proc_ssh = fork()) == 0) {
-			char **args_nouvelle_cmd  = InitialiserListeArguments();
-			
+		char **args_nouvelle_cmd;
+		
+		if (!sont_egales (machine_courante, "localhost") && (proc_ssh = fork()) == 0) { // Commande executer sur la machine distantes
 			// Les sorties sont rediriger vers le tube
 			close (tube[0]);
 			dup2(tube[1], STDOUT_FILENO);
 			dup2(tube[1], STDERR_FILENO);
 			close (tube[1]);
 			
-			// Construction de la commande : ssh MachineDistante /tmp/Shell
+			// Affichage du nom de la machine
+			printf ("\033[1;36m---- %s ----\033[0m\n", machine_courante);
+			
+			// Construction de la commande : ssh MachineDistante /tmp/Shell CMD
+			args_nouvelle_cmd = InitialiserListeArguments();
 			AjouterArg (args_nouvelle_cmd, "ssh");
 			AjouterArg (args_nouvelle_cmd, machine_courante);
 			AjouterArg (args_nouvelle_cmd, fic_distant);
@@ -1481,8 +1486,33 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 				id_arg++;
 			}
 			
+			// Exécution de la commande
+			execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
+			exit (EXIT_FAILURE);
+		}
+		else if (sont_egales (machine_courante, "localhost") && (proc_ssh = fork()) == 0){
+			//printf ("PASSSER\n");
+			
+			// Les sorties sont rediriger vers le tube
+			close (tube[0]);
+			dup2(tube[1], STDOUT_FILENO);
+			dup2(tube[1], STDERR_FILENO);
+			close (tube[1]);
+			
 			// Affichage du nom de la machine
 			printf ("\033[1;36m---- %s ----\033[0m\n", machine_courante);
+			sleep (1);
+			
+			// Construction de la commande : /tmp/Shell CMD
+			args_nouvelle_cmd = InitialiserListeArguments();
+			AjouterArg (args_nouvelle_cmd, fic_distant);
+			
+			//Ajout de la commande que le Shell distant va exécuter
+			id_arg = 0;
+			while (args_commande[id_arg] != NULL) {
+				AjouterArg (args_nouvelle_cmd, args_commande[id_arg]);
+				id_arg++;
+			}
 			
 			// Exécution de la commande
 			execvp(args_nouvelle_cmd[0], args_nouvelle_cmd);
@@ -1492,19 +1522,19 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 			// Attente que la commande se termine.
 			waitpid(proc_ssh, &status_fils, 0);
 			
-			// Une fois que la commande ssh est terminée, on fini la commande sh (affichage)
+			// Une fois que la commande est exécutée, on fini la commande sh (affichage)
 			kill (proc_xcat, 9);
 			waitpid(proc_xcat, NULL, 0);
 			
 			// Si aucun fils n'a retourné d'erreur
 			if (retour_fils)
 				retour_fils = (WEXITSTATUS(status) != EXIT_SUCCESS);
+			
+			close (tube[0]);
+			close (tube[1]);
 		}
 		it++;
 	}
-	
-	close (tube[0]);
-	close (tube[1]);
 	
 	return retour_fils;
 }
@@ -1543,11 +1573,17 @@ int cmdInt_remote (char **args) {
 							strcpy (src, REPERTOIRE_SHELL);
 							strcat (src, "/Shell");
 							
-							//Construction de la chaine de destination du scp : nomMachine:/tmp/Shell
-							char dest[strlen(args[id_arg]) + strlen(":") + strlen(fic_distant) + 1];
-							strcpy (dest, args[id_arg]);
-							strcat (dest, ":");
-							strcat (dest, fic_distant);
+							char *dest;
+							if (!sont_egales (args[id_arg], "localhost")) {
+								//Construction de la chaine de destination du scp : nomMachine:/tmp/Shell
+								dest = malloc (strlen(args[id_arg]) + strlen(":") + strlen(fic_distant) + 1);
+								strcpy (dest, args[id_arg]);
+								strcat (dest, ":");
+								strcat (dest, fic_distant);
+							}
+							else {
+								dest = fic_distant;
+							}
 							
 							// Aucune sortie du transfert de fichier se fait dans le terminal courant
 							// Cela se fait dans un fichier tmp
@@ -1612,7 +1648,10 @@ int cmdInt_remote (char **args) {
 					}
 					
 					// Execution de la commande
-					execlp("ssh", "ssh", machines_distantes_liees[it], "rm", fic_distant, NULL);
+					if (sont_egales (machines_distantes_liees[it], "localhost"))
+						execlp("rm", "-f", fic_distant, NULL);
+					else
+						execlp("ssh", "ssh", machines_distantes_liees[it], "rm", "-f", fic_distant, NULL);
 					exit (EXIT_FAILURE);
 				}
 				else {
