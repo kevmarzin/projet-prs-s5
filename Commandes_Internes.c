@@ -1435,7 +1435,6 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 	
 	int tube [2];
 	
-	
 	while (une_seule_machine || (it < NB_MACHINES_DISTANTES_MAX && machines_distantes_liees[it] != NULL)) {
 		pipe(tube);
 		
@@ -1491,8 +1490,6 @@ int cmdInt_remote_execCmd (char *machine_distante, char **args_commande, char *f
 			exit (EXIT_FAILURE);
 		}
 		else if (sont_egales (machine_courante, "localhost") && (proc_ssh = fork()) == 0){
-			//printf ("PASSSER\n");
-			
 			// Les sorties sont rediriger vers le tube
 			close (tube[0]);
 			dup2(tube[1], STDOUT_FILENO);
@@ -1564,8 +1561,8 @@ int cmdInt_remote (char **args) {
 				it = LongueurListe(machines_distantes_liees);
 				
 				// Parcours de tous les noms de machines donnés
-				while (args[id_arg] != NULL && !erreur && it < NB_MACHINES_DISTANTES_MAX){
-					if (!sont_egales (args[id_arg], "all")) {
+				while (args[id_arg] != NULL && !erreur && it < NB_MACHINES_DISTANTES_MAX) {
+					if (!sont_egales (args[id_arg], "all") && !estUneMachineDistante (args[id_arg])) {
 						// Envoie sur la machine distante de l'éxecutable de l'aplication
 						if (fork() == 0) {
 							// Construction de la chaine source du scp : RepertoireDeLApplication/Shell
@@ -1607,7 +1604,7 @@ int cmdInt_remote (char **args) {
 								machines_distantes_liees[it] = malloc(strlen(args[id_arg]) + 1);
 								strcpy(machines_distantes_liees[it], args[id_arg]);
 								
-								printf ("%s ajouté à la liste de machines distantes.\n", machines_distantes_liees[it]);
+								printf ("remote : %s ajouté à la liste de machines distantes.\n", machines_distantes_liees[it]);
 								
 								if (++it < NB_MACHINES_DISTANTES_MAX)
 									machines_distantes_liees[it] = NULL;
@@ -1615,19 +1612,19 @@ int cmdInt_remote (char **args) {
 									printf ("remote : liste remplie, arrêt de la commande. Les machines à partir de %s n'ont pas été ajoutés\n", args[id_arg + 1]);
 							}
 							else {
-								/*char *args_nouvelle_cmd[] = { "remove" };
-								cmdInt_remote ( args_nouvelle_cmd );
-								erreur = 1; */
-								/*f*/printf (/*stderr, */"remote : %s : Machine distante inconnue ou service indisponible.\n", args[id_arg]);
+								fprintf (stderr, "remote : %s : Machine distante inconnue ou service indisponible.\n", args[id_arg]);
 							}
 						}
 					}
-					else {
-						printf ("remote : %s : Nom de machine non accepté.\n", args[id_arg]);
+					else if (sont_egales (args[id_arg], "all")) {
+						fprintf (stderr, "remote : %s : Nom de machine non accepté.\n", args[id_arg]);
+					}
+					else { // machine déjà présente dans la liste de machine distante
+						fprintf (stderr, "remote : %s : Machine déjà enregistrée.\n", args[id_arg]);
 					}
 					id_arg++;
 				}
-			}
+			}	
 			else {
 				fprintf(stderr, "remote : veuillez entrer un nom de machine distante.\n");
 				erreur = 1;

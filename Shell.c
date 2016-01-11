@@ -318,6 +318,7 @@ int main (int argc, char **argv){
 				strcat (chaine_cmd_distante, " ");
 			i++;
 		}
+		
 	}
 
 	while (!exit_prog){

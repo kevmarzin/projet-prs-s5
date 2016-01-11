@@ -193,8 +193,10 @@ int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 		ret = exit_prog = cmdInt_exit ();
 	else if (sont_egales (args[0], "hostname"))
 		ret = cmdInt_hostname (args + 1);
-	else if (sont_egales (args[0], "remote"))
+	else if (sont_egales (args[0], "remote")) {
 		ret = cmdInt_remote (args + 1);
+		
+	}
 	else if (sont_egales (args[0], "pwd"))
 		ret = cmdInt_pwd(args + 1);
 	else if (sont_egales (args[0], "cd"))
