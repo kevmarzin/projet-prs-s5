@@ -1158,6 +1158,7 @@ int cmdInt_hostname (char **args) {
 		// Version hostname
 		if (sont_egales(args[id_arg], "-V") || sont_egales(args[id_arg], "--version")) {
 			//Afficher la version et ne pas prendre en compte n'importe quel autre arg
+			fprintf(stderr, "hostname : %s : option non implémentée\n", args[id_arg]);
 			stop = 1;
 		}
 		// Affichage aide (usage commande)
@@ -1190,11 +1191,13 @@ int cmdInt_hostname (char **args) {
 		// Placement sur le dernier argument de la liste d'arguments
 		if (args[id_arg + 1] == NULL) {
 			if (sont_egales(args[id_arg], "-a") || sont_egales(args[id_arg], "--alias")) {
-				// Je ne sais pas à quoi ça correspond
-				// deprecated
+				fprintf(stderr, "hostname : %s : option non implémentée\n", args[id_arg]);
+				erreur = 1;
+				// obsolète
 			}
 			else if (sont_egales(args[id_arg], "-A") || sont_egales(args[id_arg], "--all-fqdns")) {
-				// Pas compris
+				fprintf(stderr, "hostname : %s : option non implémentée\n", args[id_arg]);
+				erreur = 1;
 			}
 			else if (sont_egales(args[id_arg], "-d") || sont_egales(args[id_arg], "--domain")) {
 				struct hostent *hp;
@@ -1281,16 +1284,8 @@ int cmdInt_hostname (char **args) {
 					}
 				}
 				else {
-					// Pas trouvé
-					/*
-					p = res;
-					while (p != NULL) {
-						h = (struct sockaddr_in *) p->ai_addr;
-						inet_ntop(p->ai_family, &(h->sin_addr), ipstr, sizeof ipstr);
-						printf("%s\n", ipstr);
-						
-						p = p->ai_next;
-					}*/
+					fprintf(stderr, "hostname : %s : option non implémentée\n", args[id_arg]);
+					erreur = 1;
 				}
 				
 				// Libération de la mémoire occupée par les enregistrements
