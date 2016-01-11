@@ -660,13 +660,15 @@ int cmdInt_pwd(char **args) {
 int cmdInt_cd(char **args) {
 	int erreur = 0;
 	
+	// On vérifie qu'un argument a été transmis
 	if (args[0] != NULL) {
+		// Vérification que le répertoire transmis est valide, si oui on effectue la procedure
 		if (chdir(args[0]) == -1) {
 			fprintf(stderr, "cd : %s : n'est pas un dossier\n", args[0]);
 			erreur = 1;
 		}
 	}
-	else {
+	else { // Sinon on ouvre le répertoire $HOME
 		chdir(getenv("HOME"));
 	}
 	
