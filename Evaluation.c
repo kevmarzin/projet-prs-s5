@@ -8,6 +8,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
+/*
+ * Initialise la chaine expr telle quelle représente l'expression e.
+ */
 void construire_chaine_expr (Expression *e, char *expr) {
 	int i = 0;
 	switch (e->type){
@@ -70,6 +73,9 @@ void construire_chaine_expr (Expression *e, char *expr) {
 	}
 }
 
+/*
+ * Calcul le nombre de caractères permetant d'allouer la chaîne de la cmde. Sans le caractère de fin '\0'
+ */
 int taille_chaine_expression (Expression *e) {
 	int taille = 0;
 	int i = 0;
@@ -119,14 +125,22 @@ int taille_chaine_expression (Expression *e) {
 	return taille;
 }
 
+/*
+ * Renvoie l'id dans les tableaux de la première case non occupée
+ */
 int id_vide_expr_BG(pid_t tab_pid[]){
 	int i = 0;
+	
+	// Parcours de toutes case tant que la case courante est occupée
 	while (i < NB_CMDS_BG_MAX && tab_pid[i] != -1)
 		i++;
 	
 	return i < NB_CMDS_BG_MAX ? i : -1;
 }
 
+/*
+ * Renvoie l'id dans le tableau du PID fournis
+ */
 int id_pid_expr_BG(pid_t tab_pid[], pid_t pid){
 	int i = 0;
 	while (i < NB_CMDS_BG_MAX && tab_pid[i] != pid)
@@ -135,13 +149,19 @@ int id_pid_expr_BG(pid_t tab_pid[], pid_t pid){
 	return i < NB_CMDS_BG_MAX ? i : -1;
 }
 
+/*
+ * Supprime les processus fils zombies, lancés en BG
+ */
 void suppression_zombies () {
 	pid_t pid_zombie;
 	do {
+		// Si un processus était zombie usque là, il est supprimé
 		pid_zombie = waitpid (-1, NULL, WNOHANG);
 		if (pid_zombie > 0) {
+			// Récupération de son ID dans les tableaux
 			int id = id_pid_expr_BG(pids_bg, pid_zombie);
 			if (id != -1) {
+				// Affichage des informations pour l'utilisateur
 				printf ("[%d]   Fini\t\t\t%s\n", id + 1, cmds_bg[id]);
 				
 				// Les structures de données sont vidées
@@ -151,15 +171,16 @@ void suppression_zombies () {
 			}
 		}
 	}
-	while (pid_zombie > 0);
+	while (pid_zombie > 0); // Le faire tant que la procédure récupère un zombie
 }
 
-void handler (int sig) {
-	
-}
-
+/*
+ * Evaluation d'une commande simple, si elle a été lancée en BG cmd_en_bg est à 1 sinon 0.
+ */
 int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 	int ret = 1;
+	
+	// Si c'est une commande interne reçu
 	if (sont_egales (args[0], "echo"))
 		ret = cmdInt_echo (args + 1);
 	else if (sont_egales (args[0], "history"))
@@ -178,26 +199,34 @@ int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 		ret = cmdInt_pwd(args + 1);
 	else if (sont_egales (args[0], "cd"))
 		ret = cmdInt_cd (args + 1);
-	else { //Commande externe exécutée
+	else { //Sinon c'est une commande externe exécutée
 		pid_t fpid;
+		
+		// Exec lancé sans fork si la comande a été lancé en BG
 		if (cmd_en_bg || (fpid = fork()) == 0) {
+			
+			/* Mise en place de masques de signaux, pour que le processus ne tiennent pas compte des Ctrl-c et Ctrl-\ */
 			sigset_t masque;
 			sigemptyset(&masque);
 			sigaddset (&masque, SIGINT);
 			sigaddset (&masque, SIGQUIT);
 			sigprocmask (SIG_SETMASK, &masque, NULL);
-			signal (SIGQUIT, handler);
-			signal (SIGINT, handler);
+			
+			// Commande lancée
 			execvp(args[0], args);
+			
+			// Erreur
 			fprintf (stderr, "%s : commande introuvable\n", args[0]);
 			exit(EXIT_FAILURE);
 		}
 		else {
 			int status;
 			
+			// Si la commande est lancée en avant plan
 			if (!cmd_en_bg)
 				pid_avant_plan = fpid;
 			
+			// Le Shell est bloqué lorsque il y a une commande en avant plan
 			waitpid(fpid, &status, 0);
 			ret = (WEXITSTATUS(status) != EXIT_FAILURE);
 		}
@@ -205,10 +234,16 @@ int evaluer_expr_simple_bg (char **args, int cmd_en_bg){
 	return ret;
 }
 
+/*
+ * Evalue une commande qui n'est pas lancé en BG
+ */
 int evaluer_expr_simple (char **args){
 	return evaluer_expr_simple_bg (args, 0);
 }
 
+/*
+ * Evaluation d'une Expression, si elle a été lancée en BG cmd_en_bg est à 1 sinon 0.
+ */
 int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 	int ret = 1;
 	
@@ -240,6 +275,8 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 				break;
 			case SEQUENCE: // Séquence d'instruction (;)
 				ret = evaluer_expr (e->gauche);
+				
+				// Le résultat de l'evaluation dépend de la seconde expression si la première a retourné vrai
 				if (ret)
 					ret = evaluer_expr(e->droite);
 				else
@@ -254,6 +291,7 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 			case BG: // Tâche en arrière plan (&)
 				idProcBg = id_vide_expr_BG(pids_bg);
 				
+				// Evaluation de l'expression lorsqu'une place dans les tableaux de BG est trouvée
 				if (idProcBg != -1 && (pid_fils = fork()) == 0) {
 					evaluer_expr_bg(e->gauche, 1);
 					exit (0);
@@ -279,6 +317,7 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 				break;
 			case PIPE: // pipe (|)
 				pipe (tube);
+				// Création d'un fils qui va écrire dans le tube
 				if ((pid_fils = fork()) == 0){
 					close (tube[0]);
 					fd_sauvegarde_stdout = dup (STDOUT_FILENO);
@@ -290,17 +329,22 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 					exit (!ret);
 				}
 				else {
+					// Attente que le fils soit fini
 					waitpid (pid_fils, &status, 0);
+					
+					// Si le fils n'a pas produit d'erreur, on lie l'entrée standard au tube
 					if ((WEXITSTATUS(status) != EXIT_FAILURE)) {
 						close (tube[1]);
 						fd_sauvegarde_stdin = dup (STDIN_FILENO);
 						dup2 (tube[0], STDIN_FILENO);
 						close (tube[0]);
 						ret = evaluer_expr(e->droite);
+						
+						// Rétablissement de l'entrée standard
 						dup2 (fd_sauvegarde_stdin, STDIN_FILENO);
 						close (fd_sauvegarde_stdin);
 					}
-					else {
+					else { // fermeture du tube
 						close (tube[1]);
 						close (tube[0]);
 						ret = 0;
@@ -309,12 +353,15 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 				break;
 			case REDIRECTION_I: // Redirection de l'entrée (<)
 				fd = open(e->arguments[0], O_RDONLY);
+				
+				// Vérification qu'il n'y a pas eu d'erreur à l'ouverture
 				if (fd == -1){
 					ret = 0;
 					fprintf (stderr, "%s : Aucun fichier ou dossier de ce type\n", e->arguments[0]);
 				}
 				else {
 					pipe (tube);
+					// Création d'un fils qui écrit le fichier d'entrée dans le tube
 					if ((pid_fils = fork()) == 0){
 						close (tube[0]);
 						fd_sauvegarde_stdout = dup (STDOUT_FILENO);
@@ -328,10 +375,13 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 						
 						dup2 (fd_sauvegarde_stdout, STDOUT_FILENO);
 						close (fd_sauvegarde_stdout);
-						exit (!ret);
+						exit (EXIT_SUCCESS);
 					}
 					else {
+						// Attente du fils
 						waitpid (pid_fils, &status, 0);
+						
+						// Si le fils n'a pas produits de d'erreur, le tube est lié à l'entrée standard, et evaluation de la commande 
 						if ((WEXITSTATUS(status) != EXIT_FAILURE)) {
 							close (tube[1]);
 							fd_sauvegarde_stdin = dup (STDIN_FILENO);
@@ -401,10 +451,12 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 				}
 				break;
 			case SOUS_SHELL:
+				// Création d'un fils qui évalue l'expression
 				if ((pid_fils = fork ()) == 0) {
 					exit (evaluer_expr (e->gauche) != 1);
 				}
 				else {
+					// Attente du fils, conversion de EXIT_SUCESS en 1 et Exit_FAILURE 0
 					waitpid (pid_fils, &status, 0);
 					ret = WEXITSTATUS(status) == EXIT_SUCCESS;
 				}
@@ -426,6 +478,9 @@ int evaluer_expr_bg (Expression *e, int cmd_en_bg){
 	return ret;
 }
 
+/*
+ * Evalue une expression qui n'est pas lancé en BG
+ */
 int evaluer_expr (Expression *e) {
 	return evaluer_expr_bg (e, 0);
 }
